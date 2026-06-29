@@ -30,28 +30,172 @@ public static partial class ObdDecoder
 
     private static readonly Dictionary<string, string> DtcDescriptions = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["P0000"] = "No diagnostic trouble codes reported",
+        ["P0010"] = "Camshaft position actuator circuit bank 1",
+        ["P0011"] = "Camshaft position timing over-advanced or system performance bank 1",
+        ["P0012"] = "Camshaft position timing over-retarded bank 1",
+        ["P0013"] = "Camshaft position actuator circuit bank 1 exhaust",
+        ["P0014"] = "Camshaft position timing over-advanced bank 1 exhaust",
+        ["P0015"] = "Camshaft position timing over-retarded bank 1 exhaust",
+        ["P0016"] = "Crankshaft/camshaft position correlation bank 1 sensor A",
+        ["P0017"] = "Crankshaft/camshaft position correlation bank 1 sensor B",
+        ["P0031"] = "Oxygen/A-F sensor heater control circuit low bank 1 sensor 1",
+        ["P0032"] = "Oxygen/A-F sensor heater control circuit high bank 1 sensor 1",
+        ["P0037"] = "Oxygen sensor heater control circuit low bank 1 sensor 2",
+        ["P0038"] = "Oxygen sensor heater control circuit high bank 1 sensor 2",
+        ["P0051"] = "Oxygen/A-F sensor heater control circuit low bank 2 sensor 1",
+        ["P0052"] = "Oxygen/A-F sensor heater control circuit high bank 2 sensor 1",
+        ["P0057"] = "Oxygen sensor heater control circuit low bank 2 sensor 2",
+        ["P0058"] = "Oxygen sensor heater control circuit high bank 2 sensor 2",
         ["P0100"] = "Mass or volume air flow circuit",
         ["P0101"] = "Mass air flow circuit range/performance",
+        ["P0102"] = "Mass air flow circuit low input",
+        ["P0103"] = "Mass air flow circuit high input",
+        ["P0105"] = "Manifold absolute pressure/barometric pressure circuit",
+        ["P0106"] = "Manifold absolute pressure/barometric pressure range/performance",
+        ["P0107"] = "Manifold absolute pressure/barometric pressure low input",
+        ["P0108"] = "Manifold absolute pressure/barometric pressure high input",
         ["P0110"] = "Intake air temperature sensor circuit",
+        ["P0112"] = "Intake air temperature sensor circuit low input",
+        ["P0113"] = "Intake air temperature sensor circuit high input",
         ["P0115"] = "Engine coolant temperature circuit",
+        ["P0116"] = "Engine coolant temperature circuit range/performance",
+        ["P0117"] = "Engine coolant temperature circuit low input",
+        ["P0118"] = "Engine coolant temperature circuit high input",
         ["P0120"] = "Throttle/pedal position sensor circuit",
+        ["P0121"] = "Throttle/pedal position sensor circuit range/performance",
+        ["P0122"] = "Throttle/pedal position sensor circuit low input",
+        ["P0123"] = "Throttle/pedal position sensor circuit high input",
+        ["P0125"] = "Insufficient coolant temperature for closed-loop fuel control",
+        ["P0128"] = "Coolant thermostat below regulating temperature",
         ["P0130"] = "Oxygen sensor circuit bank 1 sensor 1",
+        ["P0131"] = "Oxygen sensor circuit low voltage bank 1 sensor 1",
+        ["P0132"] = "Oxygen sensor circuit high voltage bank 1 sensor 1",
+        ["P0133"] = "Oxygen sensor circuit slow response bank 1 sensor 1",
+        ["P0134"] = "Oxygen sensor circuit no activity detected bank 1 sensor 1",
         ["P0135"] = "Oxygen sensor heater circuit bank 1 sensor 1",
+        ["P0136"] = "Oxygen sensor circuit bank 1 sensor 2",
+        ["P0137"] = "Oxygen sensor circuit low voltage bank 1 sensor 2",
+        ["P0138"] = "Oxygen sensor circuit high voltage bank 1 sensor 2",
+        ["P0139"] = "Oxygen sensor circuit slow response bank 1 sensor 2",
+        ["P0140"] = "Oxygen sensor circuit no activity detected bank 1 sensor 2",
+        ["P0141"] = "Oxygen sensor heater circuit bank 1 sensor 2",
+        ["P0150"] = "Oxygen sensor circuit bank 2 sensor 1",
+        ["P0151"] = "Oxygen sensor circuit low voltage bank 2 sensor 1",
+        ["P0152"] = "Oxygen sensor circuit high voltage bank 2 sensor 1",
+        ["P0153"] = "Oxygen sensor circuit slow response bank 2 sensor 1",
+        ["P0154"] = "Oxygen sensor circuit no activity detected bank 2 sensor 1",
+        ["P0155"] = "Oxygen sensor heater circuit bank 2 sensor 1",
+        ["P0156"] = "Oxygen sensor circuit bank 2 sensor 2",
+        ["P0157"] = "Oxygen sensor circuit low voltage bank 2 sensor 2",
+        ["P0158"] = "Oxygen sensor circuit high voltage bank 2 sensor 2",
+        ["P0159"] = "Oxygen sensor circuit slow response bank 2 sensor 2",
+        ["P0160"] = "Oxygen sensor circuit no activity detected bank 2 sensor 2",
+        ["P0161"] = "Oxygen sensor heater circuit bank 2 sensor 2",
         ["P0171"] = "System too lean bank 1",
         ["P0172"] = "System too rich bank 1",
+        ["P0174"] = "System too lean bank 2",
+        ["P0175"] = "System too rich bank 2",
+        ["P0201"] = "Injector circuit/open cylinder 1",
+        ["P0202"] = "Injector circuit/open cylinder 2",
+        ["P0203"] = "Injector circuit/open cylinder 3",
+        ["P0204"] = "Injector circuit/open cylinder 4",
+        ["P0217"] = "Engine coolant over-temperature condition",
+        ["P0325"] = "Knock sensor circuit bank 1",
+        ["P0335"] = "Crankshaft position sensor A circuit",
+        ["P0340"] = "Camshaft position sensor circuit bank 1 sensor A",
+        ["P0351"] = "Ignition coil A primary/secondary circuit",
+        ["P0352"] = "Ignition coil B primary/secondary circuit",
+        ["P0353"] = "Ignition coil C primary/secondary circuit",
+        ["P0354"] = "Ignition coil D primary/secondary circuit",
+        ["P0400"] = "Exhaust gas recirculation flow",
+        ["P0401"] = "Exhaust gas recirculation flow insufficient detected",
+        ["P0402"] = "Exhaust gas recirculation flow excessive detected",
+        ["P0403"] = "Exhaust gas recirculation control circuit",
         ["P0300"] = "Random/multiple cylinder misfire",
         ["P0301"] = "Cylinder 1 misfire",
         ["P0302"] = "Cylinder 2 misfire",
         ["P0303"] = "Cylinder 3 misfire",
         ["P0304"] = "Cylinder 4 misfire",
+        ["P0327"] = "Knock sensor circuit low input bank 1",
+        ["P0328"] = "Knock sensor circuit high input bank 1",
         ["P0420"] = "Catalyst system efficiency below threshold bank 1",
+        ["P0430"] = "Catalyst system efficiency below threshold bank 2",
         ["P0440"] = "Evaporative emission control system",
         ["P0441"] = "Evaporative emission system incorrect purge flow",
         ["P0442"] = "Evaporative emission system small leak",
+        ["P0443"] = "Evaporative emission system purge control valve circuit",
         ["P0446"] = "Evaporative emission vent control circuit",
         ["P0455"] = "Evaporative emission system gross leak",
+        ["P0456"] = "Evaporative emission system very small leak",
+        ["P0450"] = "Evaporative emission pressure sensor circuit",
+        ["P0451"] = "Evaporative emission pressure sensor range/performance",
+        ["P0452"] = "Evaporative emission pressure sensor low input",
+        ["P0453"] = "Evaporative emission pressure sensor high input",
+        ["P0460"] = "Fuel level sensor circuit",
+        ["P0461"] = "Fuel level sensor circuit range/performance",
+        ["P0462"] = "Fuel level sensor circuit low input",
+        ["P0463"] = "Fuel level sensor circuit high input",
         ["P0500"] = "Vehicle speed sensor",
-        ["P0606"] = "PCM/ECM processor fault"
+        ["P0505"] = "Idle air control system",
+        ["P0506"] = "Idle control system RPM lower than expected",
+        ["P0507"] = "Idle control system RPM higher than expected",
+        ["P0560"] = "System voltage",
+        ["P0562"] = "System voltage low",
+        ["P0563"] = "System voltage high",
+        ["P0606"] = "PCM/ECM processor fault",
+        ["P0700"] = "Transmission control system MIL request",
+        ["P0705"] = "Transmission range sensor circuit",
+        ["P0710"] = "Transmission fluid temperature sensor circuit",
+        ["P0715"] = "Input/turbine speed sensor circuit",
+        ["P0720"] = "Output speed sensor circuit",
+        ["P0741"] = "Torque converter clutch circuit performance or stuck off",
+        ["P0751"] = "Shift solenoid A performance or stuck off",
+        ["P0753"] = "Shift solenoid A electrical",
+        ["P0756"] = "Shift solenoid B performance or stuck off",
+        ["P0758"] = "Shift solenoid B electrical",
+        ["P0771"] = "Shift solenoid E performance or stuck off",
+        ["P0773"] = "Shift solenoid E electrical",
+        ["P1120"] = "Accelerator pedal position sensor circuit",
+        ["P1121"] = "Accelerator pedal position sensor range/performance",
+        ["P1125"] = "Throttle control motor circuit",
+        ["P1130"] = "Air/fuel ratio sensor circuit range/performance bank 1 sensor 1",
+        ["P1133"] = "Air/fuel ratio sensor circuit response bank 1 sensor 1",
+        ["P1135"] = "Air/fuel ratio sensor heater circuit bank 1 sensor 1",
+        ["P1150"] = "Air/fuel ratio sensor circuit range/performance bank 2 sensor 1",
+        ["P1153"] = "Air/fuel ratio sensor circuit response bank 2 sensor 1",
+        ["P1155"] = "Air/fuel ratio sensor heater circuit bank 2 sensor 1",
+        ["P1604"] = "Startability malfunction",
+        ["P1605"] = "Rough idle",
+        ["P2111"] = "Throttle actuator control system stuck open",
+        ["P2112"] = "Throttle actuator control system stuck closed",
+        ["P2118"] = "Throttle actuator control motor current range/performance",
+        ["P2120"] = "Throttle/pedal position sensor/switch D circuit",
+        ["P2121"] = "Throttle/pedal position sensor/switch D circuit range/performance",
+        ["P2122"] = "Throttle/pedal position sensor/switch D circuit low input",
+        ["P2123"] = "Throttle/pedal position sensor/switch D circuit high input",
+        ["P2135"] = "Throttle/pedal position sensor/switch A/B voltage correlation",
+        ["P2195"] = "Oxygen/A-F sensor signal stuck lean bank 1 sensor 1",
+        ["P2196"] = "Oxygen/A-F sensor signal stuck rich bank 1 sensor 1",
+        ["P2237"] = "Oxygen/A-F sensor positive current control circuit/open bank 1 sensor 1",
+        ["P2238"] = "Oxygen/A-F sensor positive current control circuit low bank 1 sensor 1",
+        ["P2239"] = "Oxygen/A-F sensor positive current control circuit high bank 1 sensor 1",
+        ["C0200"] = "Right front wheel speed sensor signal",
+        ["C0205"] = "Left front wheel speed sensor signal",
+        ["C0210"] = "Right rear wheel speed sensor signal",
+        ["C0215"] = "Left rear wheel speed sensor signal",
+        ["C1201"] = "Engine control system malfunction reported to skid control ECU",
+        ["C1223"] = "ABS control system malfunction",
+        ["C1241"] = "Low or high power supply voltage",
+        ["C1246"] = "Master cylinder pressure sensor",
+        ["C1252"] = "Brake booster pump motor",
+        ["C1336"] = "Zero point calibration of yaw rate/acceleration sensor undone",
+        ["U0100"] = "Lost communication with ECM/PCM",
+        ["U0121"] = "Lost communication with ABS/skid control module",
+        ["U0123"] = "Lost communication with yaw rate sensor module",
+        ["U0124"] = "Lost communication with lateral acceleration sensor module",
+        ["U0126"] = "Lost communication with steering angle sensor module",
+        ["U0155"] = "Lost communication with instrument panel cluster"
     };
 
     public static IReadOnlyList<DiagnosticTroubleCode> DecodeDtcResponse(string rawResponse, string type)
@@ -80,7 +224,7 @@ public static partial class ObdDecoder
                 {
                     Type = type,
                     Code = code,
-                    Description = DtcDescriptions.TryGetValue(code, out var description) ? description : "Description not in local database",
+                    Description = GetDtcDescription(code),
                     RawResponse = rawResponse
                 });
             }
@@ -381,6 +525,39 @@ public static partial class ObdDecoder
         };
 
         return string.Create(CultureInfo.InvariantCulture, $"{system}{(first & 0x30) >> 4:X1}{first & 0x0F:X1}{(second & 0xF0) >> 4:X1}{second & 0x0F:X1}");
+    }
+
+    private static string GetDtcDescription(string code)
+    {
+        if (DtcDescriptions.TryGetValue(code, out var description))
+        {
+            return description;
+        }
+
+        if (code.Length != 5)
+        {
+            return "Description not in local database";
+        }
+
+        var system = code[0] switch
+        {
+            'P' => "Powertrain",
+            'C' => "Chassis",
+            'B' => "Body",
+            'U' => "Network communication",
+            _ => "Unknown system"
+        };
+
+        var scope = code[1] switch
+        {
+            '0' => "generic OBD-II",
+            '1' => "manufacturer-specific",
+            '2' => "generic or manufacturer-specific",
+            '3' => "generic or manufacturer-specific",
+            _ => "unknown scope"
+        };
+
+        return $"{system} code ({scope}); description not in local database";
     }
 
     private static IEnumerable<IReadOnlyList<byte>> FindPayloads(string rawResponse, int positiveResponse, int? pid = null)
