@@ -395,6 +395,51 @@ public static partial class ObdDecoder
         return vin.Trim('\0', ' ', '\r', '\n');
     }
 
+    public static IReadOnlyList<Mode6TestResult> DecodeMode6Response(string rawResponse)
+    {
+        var rows = new List<Mode6TestResult>();
+        foreach (var payload in FindPayloads(rawResponse, 0x46))
+        {
+            if (payload.Count < 2)
+            {
+                continue;
+            }
+
+            if (payload.Count >= 9)
+            {
+                var testId = payload[1];
+                var componentId = payload[2];
+                var value = ToUInt16(payload[3], payload[4]);
+                var minimum = ToUInt16(payload[5], payload[6]);
+                var maximum = ToUInt16(payload[7], payload[8]);
+                rows.Add(new Mode6TestResult
+                {
+                    TestId = $"${testId:X2} {DescribeMode6Tid(testId)}",
+                    ComponentId = $"${componentId:X2}",
+                    Value = value.ToString(CultureInfo.InvariantCulture),
+                    Minimum = minimum.ToString(CultureInfo.InvariantCulture),
+                    Maximum = maximum.ToString(CultureInfo.InvariantCulture),
+                    Status = value >= minimum && value <= maximum ? "Pass" : "Review",
+                    RawResponse = rawResponse
+                });
+                continue;
+            }
+
+            rows.Add(new Mode6TestResult
+            {
+                TestId = $"${payload[1]:X2} {DescribeMode6Tid(payload[1])}",
+                ComponentId = "",
+                Value = "Raw " + string.Join(" ", payload.Skip(2).Select(valueByte => valueByte.ToString("X2", CultureInfo.InvariantCulture))),
+                Minimum = "",
+                Maximum = "",
+                Status = "Decoded raw",
+                RawResponse = rawResponse
+            });
+        }
+
+        return rows;
+    }
+
     public static string BuildQuickReport(
         string connection,
         string protocol,
@@ -501,6 +546,23 @@ public static partial class ObdDecoder
             default:
                 return false;
         }
+    }
+
+    private static int ToUInt16(byte high, byte low)
+    {
+        return (high << 8) + low;
+    }
+
+    private static string DescribeMode6Tid(int tid)
+    {
+        return tid switch
+        {
+            >= 0x01 and <= 0x0F => "oxygen/air-fuel monitor",
+            >= 0x21 and <= 0x2F => "catalyst/EVAP monitor",
+            >= 0x31 and <= 0x3F => "EGR/VVT monitor",
+            >= 0x51 and <= 0x5F => "misfire monitor",
+            _ => "monitor test"
+        };
     }
 
     private static MonitorStatus BuildMonitor(string name, int supportByte, int supportBit, int incompleteByte, int incompleteBit)

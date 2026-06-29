@@ -20,9 +20,13 @@ public partial class MainWindow : Window
     private readonly DiagnosticHistoryStore _historyStore = new();
     private readonly VehicleProfile _profile = VehicleProfile.ToyotaTacoma2008Base2TrFe;
     private readonly HashSet<int> _supportedPids = [];
+    private readonly List<LiveRecordingFrame> _liveRecordingFrames = [];
     private IObdTransport? _transport;
     private CancellationTokenSource? _pollingCancellation;
     private ReadinessSnapshot? _lastReadiness;
+    private DiagnosticWorkflow? _selectedWorkflow;
+    private bool _isRecordingLiveData;
+    private DateTime? _recordingStartedAt;
     private string _lastProtocol = "";
     private string _lastVin = "";
 
@@ -33,6 +37,7 @@ public partial class MainWindow : Window
     public ObservableCollection<FreezeFrameReading> FreezeFrameRows { get; } = [];
     public ObservableCollection<HealthFinding> HealthFindingRows { get; } = [];
     public ObservableCollection<DiagnosticSession> SessionRows { get; } = [];
+    public ObservableCollection<Mode6TestResult> Mode6Rows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -50,11 +55,15 @@ public partial class MainWindow : Window
         AdapterModeComboBox.SelectedIndex = 0;
         ProtocolComboBox.ItemsSource = AdapterProfile.ElmProtocols;
         ProtocolComboBox.SelectedIndex = 0;
+        WorkflowComboBox.ItemsSource = DiagnosticWorkflowCatalog.Workflows;
+        WorkflowComboBox.SelectedIndex = 0;
         BaudComboBox.ItemsSource = new[] { 9600, 38400, 115200, 500000 };
         BaudComboBox.SelectedItem = 38400;
         RefreshPorts();
         RefreshHistory();
         SeedLivePidGrid();
+        LoadSelectedWorkflow();
+        UpdateRecordingStatus();
         RefreshAdvisor();
         UpdateAdapterControlState();
         UpdateConnectionStatus();
@@ -212,6 +221,22 @@ public partial class MainWindow : Window
         RefreshHistory();
     }
 
+    private void LoadWorkflowButton_Click(object sender, RoutedEventArgs e)
+    {
+        LoadSelectedWorkflow();
+    }
+
+    private void CopyWorkflowToReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        LoadSelectedWorkflow();
+        RefreshReport();
+        if (!string.IsNullOrWhiteSpace(WorkflowTextBox.Text))
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Guided Workflow" + Environment.NewLine);
+            ReportTextBox.AppendText(WorkflowTextBox.Text);
+        }
+    }
+
     private async void ClearCodesButton_Click(object sender, RoutedEventArgs e)
     {
         var answer = MessageBox.Show(
@@ -281,6 +306,38 @@ public partial class MainWindow : Window
         StopPolling();
     }
 
+    private void StartRecordingButton_Click(object sender, RoutedEventArgs e)
+    {
+        _liveRecordingFrames.Clear();
+        _isRecordingLiveData = true;
+        _recordingStartedAt = DateTime.Now;
+        UpdateRecordingStatus();
+        SetFooter("Live recording started.");
+    }
+
+    private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isRecordingLiveData = false;
+        UpdateRecordingStatus();
+        SetFooter($"Live recording stopped with {_liveRecordingFrames.Count} frame(s).");
+        RefreshReport();
+    }
+
+    private void ExportRecordingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_liveRecordingFrames.Count == 0)
+        {
+            MessageBox.Show(this, "No live-data recording frames are available yet.", "TacomaDiag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var reportDirectory = GetReportDirectory();
+        var path = Path.Combine(reportDirectory, $"TacomaDiag-LiveData-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+        File.WriteAllText(path, ReportExportService.BuildLiveRecordingCsv(_liveRecordingFrames));
+        SetFooter($"Live recording exported: {path}");
+        MessageBox.Show(this, path, "CSV exported", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private async void Mode6Button_Click(object sender, RoutedEventArgs e)
     {
         await RunUiTaskAsync(ReadMode6Async);
@@ -309,8 +366,7 @@ public partial class MainWindow : Window
 
     private void SaveReportButton_Click(object sender, RoutedEventArgs e)
     {
-        var reportDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TacomaDiag Reports");
-        Directory.CreateDirectory(reportDirectory);
+        var reportDirectory = GetReportDirectory();
 
         var fileName = $"TacomaDiag-{DateTime.Now:yyyyMMdd-HHmmss}.txt";
         var path = Path.Combine(reportDirectory, fileName);
@@ -318,6 +374,16 @@ public partial class MainWindow : Window
 
         SetFooter($"Report saved: {path}");
         MessageBox.Show(this, path, "Report saved", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void SaveHtmlReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshReport();
+        var reportDirectory = GetReportDirectory();
+        var path = Path.Combine(reportDirectory, $"TacomaDiag-{DateTime.Now:yyyyMMdd-HHmmss}.html");
+        File.WriteAllText(path, ReportExportService.BuildHtmlReport(ReportTextBox.Text, HealthFindingRows, _liveRecordingFrames));
+        SetFooter($"HTML report saved: {path}");
+        MessageBox.Show(this, path, "HTML report saved", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async Task InitializeTransportAsync()
@@ -503,17 +569,26 @@ public partial class MainWindow : Window
         }
 
         LiveDashboardTextBox.Text = BuildLiveDashboard();
+        CaptureLiveRecordingFrame();
         RefreshAdvisor();
     }
 
     private async Task ReadMode6Async()
     {
         EnsureConnected();
+        Mode6Rows.Clear();
+        Mode6TextBox.Clear();
         foreach (var command in new[] { "0600", "0620", "0640", "0660", "0680", "06A0", "06C0", "06E0" })
         {
             var response = await Transport.SendCommandAsync(command, timeoutMs: 6000);
             AppendMode6($"> {command}{Environment.NewLine}{response}");
+            foreach (var row in ObdDecoder.DecodeMode6Response(response))
+            {
+                Mode6Rows.Add(row);
+            }
         }
+
+        RefreshReport();
     }
 
     private async Task ProbeModulesAsync()
@@ -717,6 +792,30 @@ public partial class MainWindow : Window
                 ReportTextBox.AppendText($"{row.Name}: {row.Value} {row.Unit}{Environment.NewLine}");
             }
         }
+
+        if (Mode6Rows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Mode 6 Monitor Tests" + Environment.NewLine);
+            foreach (var row in Mode6Rows.Take(40))
+            {
+                ReportTextBox.AppendText($"{row.TestId} {row.ComponentId}: value {row.Value}, min {row.Minimum}, max {row.Maximum}, status {row.Status}{Environment.NewLine}");
+            }
+        }
+
+        if (_liveRecordingFrames.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Live Recording" + Environment.NewLine);
+            ReportTextBox.AppendText($"Frames: {_liveRecordingFrames.Count}{Environment.NewLine}");
+            ReportTextBox.AppendText($"Started: {_recordingStartedAt:G}{Environment.NewLine}");
+            var last = _liveRecordingFrames[^1];
+            ReportTextBox.AppendText($"Last frame: RPM {last.Rpm}, speed {last.Speed}, coolant {last.Coolant}, STFT {last.ShortTermFuelTrim}, LTFT {last.LongTermFuelTrim}, voltage {last.Voltage}{Environment.NewLine}");
+        }
+
+        if (_selectedWorkflow is not null)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Selected Workflow" + Environment.NewLine);
+            ReportTextBox.AppendText($"{_selectedWorkflow.Name}: {_selectedWorkflow.Objective}{Environment.NewLine}");
+        }
     }
 
     private void RefreshAdvisor()
@@ -781,5 +880,63 @@ public partial class MainWindow : Window
         }
 
         return $"RPM {Pick("010C")} | Speed {Pick("010D")} | Coolant {Pick("0105")} | STFT {Pick("0106")} | LTFT {Pick("0107")} | Voltage {Pick("0142")}";
+    }
+
+    private void LoadSelectedWorkflow()
+    {
+        if (WorkflowComboBox.SelectedItem is not DiagnosticWorkflow workflow)
+        {
+            return;
+        }
+
+        _selectedWorkflow = workflow;
+        WorkflowTextBox.Text = DiagnosticWorkflowCatalog.BuildWorkflowText(workflow);
+        SetFooter($"Loaded workflow: {workflow.Name}");
+    }
+
+    private void CaptureLiveRecordingFrame()
+    {
+        if (!_isRecordingLiveData)
+        {
+            return;
+        }
+
+        _liveRecordingFrames.Add(new LiveRecordingFrame
+        {
+            Timestamp = DateTime.Now,
+            Rpm = PickLiveValue("010C"),
+            Speed = PickLiveValue("010D"),
+            Coolant = PickLiveValue("0105"),
+            ShortTermFuelTrim = PickLiveValue("0106"),
+            LongTermFuelTrim = PickLiveValue("0107"),
+            Voltage = PickLiveValue("0142")
+        });
+
+        UpdateRecordingStatus();
+    }
+
+    private string PickLiveValue(string pid)
+    {
+        var row = LivePidRows.FirstOrDefault(item => item.Pid == pid);
+        if (row is null || string.IsNullOrWhiteSpace(row.Value))
+        {
+            return "";
+        }
+
+        return string.IsNullOrWhiteSpace(row.Unit) ? row.Value : $"{row.Value} {row.Unit}";
+    }
+
+    private void UpdateRecordingStatus()
+    {
+        var state = _isRecordingLiveData ? "on" : "off";
+        var started = _recordingStartedAt.HasValue ? $" since {_recordingStartedAt:T}" : "";
+        LiveRecordingStatusTextBlock.Text = $"Recording: {state}; frames {_liveRecordingFrames.Count}{started}";
+    }
+
+    private static string GetReportDirectory()
+    {
+        var reportDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TacomaDiag Reports");
+        Directory.CreateDirectory(reportDirectory);
+        return reportDirectory;
     }
 }

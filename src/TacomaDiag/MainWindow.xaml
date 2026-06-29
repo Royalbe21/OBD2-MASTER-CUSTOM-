@@ -175,6 +175,25 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Workflows">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox x:Name="WorkflowComboBox" Width="260"/>
+                        <Button Content="Load Workflow" Click="LoadWorkflowButton_Click"/>
+                        <Button Content="Copy To Report" Click="CopyWorkflowToReportButton_Click"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="WorkflowTextBox" Grid.Row="1" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="Advisor">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -276,8 +295,12 @@
                         <Button Content="Read Once" Click="ReadLiveOnceButton_Click"/>
                         <Button Content="Start Polling" Click="StartPollingButton_Click"/>
                         <Button Content="Stop" Click="StopPollingButton_Click"/>
+                        <Button Content="Start Recording" Click="StartRecordingButton_Click"/>
+                        <Button Content="Stop Recording" Click="StopRecordingButton_Click"/>
+                        <Button Content="Export CSV" Click="ExportRecordingButton_Click"/>
                         <TextBlock Text="Interval ms" VerticalAlignment="Center" Margin="6,0,6,0"/>
                         <TextBox x:Name="PollIntervalTextBox" Text="1000" Width="80"/>
+                        <TextBlock x:Name="LiveRecordingStatusTextBlock" Text="Recording: off" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </StackPanel>
 
                     <DataGrid x:Name="LiveDataGrid" Grid.Row="1" ItemsSource="{Binding LivePidRows}">
@@ -301,6 +324,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <StackPanel Orientation="Horizontal">
@@ -308,7 +332,18 @@
                         <Button Content="Probe Modules" Click="ProbeModulesButton_Click"/>
                     </StackPanel>
 
-                    <TextBox x:Name="Mode6TextBox" Grid.Row="1" Margin="0,10,0,0"
+                    <DataGrid x:Name="Mode6DataGrid" Grid.Row="1" ItemsSource="{Binding Mode6Rows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Test ID" Binding="{Binding TestId}" Width="*"/>
+                            <DataGridTextColumn Header="CID" Binding="{Binding ComponentId}" Width="80"/>
+                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="110"/>
+                            <DataGridTextColumn Header="Min" Binding="{Binding Minimum}" Width="110"/>
+                            <DataGridTextColumn Header="Max" Binding="{Binding Maximum}" Width="110"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="Mode6TextBox" Grid.Row="2" Margin="0,10,0,0"
                              FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </Grid>
@@ -370,6 +405,7 @@
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Refresh Report" Click="RefreshReportButton_Click"/>
                         <Button Content="Save Report" Click="SaveReportButton_Click"/>
+                        <Button Content="Save HTML Report" Click="SaveHtmlReportButton_Click"/>
                     </StackPanel>
 
                     <TextBox x:Name="ReportTextBox" Grid.Row="1" Margin="0,10,0,0"

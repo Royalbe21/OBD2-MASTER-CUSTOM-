@@ -23,6 +23,10 @@ TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-cap
 - Freeze-frame reader for key Mode 02 data points
 - Advisor tab with health findings, next steps, and readiness guidance
 - Session history saved under local app data
+- Guided diagnostic workflows for check-engine triage, readiness, fuel trim, misfire, and adapter audits
+- Generic Mode 06 monitor-test decoding with raw logs for manufacturer-specific rows
+- Live-data recording with CSV export for before/after repair comparisons
+- HTML report export with advisor findings and recent live-recording frames
 - Dark workstation-style interface
 
 ## Important limits
