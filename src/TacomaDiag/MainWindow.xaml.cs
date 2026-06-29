@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
@@ -10,8 +11,13 @@ namespace TacomaDiag;
 
 public partial class MainWindow : Window
 {
+    private const string SerialAdapterMode = "Serial/Bluetooth ELM327";
+    private const string J2534AdapterMode = "J2534 PassThru";
+    private const string DemoAdapterMode = "Demo";
+
     private readonly Elm327Client _elm = new();
     private readonly J2534Client _j2534 = new();
+    private readonly DiagnosticHistoryStore _historyStore = new();
     private readonly VehicleProfile _profile = VehicleProfile.ToyotaTacoma2008Base2TrFe;
     private readonly HashSet<int> _supportedPids = [];
     private IObdTransport? _transport;
@@ -24,6 +30,9 @@ public partial class MainWindow : Window
     public ObservableCollection<MonitorStatus> MonitorRows { get; } = [];
     public ObservableCollection<LivePidReading> LivePidRows { get; } = [];
     public ObservableCollection<J2534DeviceInfo> J2534Devices { get; } = [];
+    public ObservableCollection<FreezeFrameReading> FreezeFrameRows { get; } = [];
+    public ObservableCollection<HealthFinding> HealthFindingRows { get; } = [];
+    public ObservableCollection<DiagnosticSession> SessionRows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -37,12 +46,16 @@ public partial class MainWindow : Window
     {
         _transport = _elm;
         ProfileTextBlock.Text = $"{_profile.Name} | {_profile.Engine} | {_profile.ExpectedProtocol}";
-        AdapterModeComboBox.ItemsSource = new[] { "Serial ELM327", "J2534 PassThru", "Demo" };
+        AdapterModeComboBox.ItemsSource = new[] { SerialAdapterMode, J2534AdapterMode, DemoAdapterMode };
         AdapterModeComboBox.SelectedIndex = 0;
+        ProtocolComboBox.ItemsSource = AdapterProfile.ElmProtocols;
+        ProtocolComboBox.SelectedIndex = 0;
         BaudComboBox.ItemsSource = new[] { 9600, 38400, 115200, 500000 };
         BaudComboBox.SelectedItem = 38400;
         RefreshPorts();
+        RefreshHistory();
         SeedLivePidGrid();
+        RefreshAdvisor();
         UpdateAdapterControlState();
         UpdateConnectionStatus();
         RefreshReport();
@@ -82,7 +95,7 @@ public partial class MainWindow : Window
         var manualDevice = J2534DeviceInfo.FromManualPath(dialog.FileName);
         J2534Devices.Add(manualDevice);
         J2534DllComboBox.SelectedItem = manualDevice;
-        AdapterModeComboBox.SelectedItem = "J2534 PassThru";
+        AdapterModeComboBox.SelectedItem = J2534AdapterMode;
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -91,13 +104,13 @@ public partial class MainWindow : Window
         {
             DisconnectTransports();
 
-            var selectedMode = AdapterModeComboBox.SelectedItem?.ToString() ?? "Serial ELM327";
-            if (selectedMode == "Demo")
+            var selectedMode = AdapterModeComboBox.SelectedItem?.ToString() ?? SerialAdapterMode;
+            if (selectedMode == DemoAdapterMode)
             {
                 _elm.ConnectDemo();
                 _transport = _elm;
             }
-            else if (selectedMode == "J2534 PassThru")
+            else if (selectedMode == J2534AdapterMode)
             {
                 if (J2534DllComboBox.SelectedItem is not J2534DeviceInfo j2534Device)
                 {
@@ -124,9 +137,15 @@ public partial class MainWindow : Window
 
             UpdateConnectionStatus();
             await InitializeTransportAsync();
+            await ApplySelectedProtocolAsync();
             await ReadProtocolAsync();
             AppendTerminal("Connected.");
         });
+    }
+
+    private async void AdapterSelfTestButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(AdapterSelfTestAsync);
     }
 
     private void DisconnectButton_Click(object sender, RoutedEventArgs e)
@@ -165,6 +184,32 @@ public partial class MainWindow : Window
     private async void PermanentCodesButton_Click(object sender, RoutedEventArgs e)
     {
         await RunUiTaskAsync(() => ReadCodesAsync("Permanent", "0A", clearExisting: true));
+    }
+
+    private async void FreezeFrameButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(ReadFreezeFrameAsync);
+    }
+
+    private void RefreshAdvisorButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshAdvisor();
+    }
+
+    private void SaveSessionButton_Click(object sender, RoutedEventArgs e)
+    {
+        SaveCurrentSession();
+    }
+
+    private void OpenHistoryFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(_historyStore.AppDataDirectory);
+        Process.Start(new ProcessStartInfo(_historyStore.AppDataDirectory) { UseShellExecute = true });
+    }
+
+    private void RefreshHistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshHistory();
     }
 
     private async void ClearCodesButton_Click(object sender, RoutedEventArgs e)
@@ -295,6 +340,32 @@ public partial class MainWindow : Window
         RefreshReport();
     }
 
+    private async Task ApplySelectedProtocolAsync()
+    {
+        if (AdapterModeComboBox.SelectedItem?.ToString() != SerialAdapterMode)
+        {
+            return;
+        }
+
+        if (ProtocolComboBox.SelectedItem is not AdapterProfile protocol)
+        {
+            return;
+        }
+
+        var response = await Transport.SendCommandAsync(protocol.Command, timeoutMs: 3000);
+        AppendTerminal($"> {protocol.Command}{Environment.NewLine}{response}");
+    }
+
+    private async Task AdapterSelfTestAsync()
+    {
+        EnsureConnected();
+        foreach (var command in new[] { "ATI", "AT@1", "ATDP", "ATDPN", "0100" })
+        {
+            var response = await Transport.SendCommandAsync(command, timeoutMs: command == "0100" ? 6500 : 3000);
+            AppendTerminal($"> {command}{Environment.NewLine}{response}");
+        }
+    }
+
     private async Task ReadVinAsync()
     {
         EnsureConnected();
@@ -303,6 +374,7 @@ public partial class MainWindow : Window
         VinTextBlock.Text = string.IsNullOrWhiteSpace(_lastVin) ? "VIN: not read" : $"VIN: {_lastVin}";
         AppendTerminal($"> 0902{Environment.NewLine}{response}");
         RefreshReport();
+        RefreshAdvisor();
     }
 
     private async Task ReadCodesAsync(string type, string command, bool clearExisting)
@@ -334,6 +406,7 @@ public partial class MainWindow : Window
         }
 
         RefreshReport();
+        RefreshAdvisor();
     }
 
     private async Task ReadReadinessAsync()
@@ -352,6 +425,30 @@ public partial class MainWindow : Window
         DtcCountTextBlock.Text = $"DTC count: {_lastReadiness.ConfirmedDtcCount}";
         EngineTypeTextBlock.Text = _lastReadiness.EngineType;
         AppendTerminal($"> 0101{Environment.NewLine}{response}");
+        RefreshReport();
+        RefreshAdvisor();
+    }
+
+    private async Task ReadFreezeFrameAsync()
+    {
+        EnsureConnected();
+        FreezeFrameRows.Clear();
+        FreezeFrameLogTextBox.Clear();
+
+        foreach (var definition in ObdDecoder.LivePidDefinitions.Take(12))
+        {
+            var command = "02" + definition.Pid[2..];
+            var response = await Transport.SendCommandAsync(command, timeoutMs: 5000);
+            FreezeFrameLogTextBox.AppendText($"> {command}{Environment.NewLine}{response}{Environment.NewLine}{Environment.NewLine}");
+            var reading = ObdDecoder.DecodeFreezeFramePid(definition, response);
+            if (reading.Value != "No data")
+            {
+                FreezeFrameRows.Add(reading);
+            }
+        }
+
+        FreezeFrameLogTextBox.ScrollToEnd();
+        RefreshAdvisor();
         RefreshReport();
     }
 
@@ -404,6 +501,9 @@ public partial class MainWindow : Window
             var response = await Transport.SendCommandAsync(definition.Pid);
             LivePidRows.Add(ObdDecoder.DecodeLivePid(definition, response, supported: true));
         }
+
+        LiveDashboardTextBox.Text = BuildLiveDashboard();
+        RefreshAdvisor();
     }
 
     private async Task ReadMode6Async()
@@ -530,14 +630,15 @@ public partial class MainWindow : Window
 
     private void UpdateAdapterControlState()
     {
-        var selectedMode = AdapterModeComboBox.SelectedItem?.ToString() ?? "Serial ELM327";
-        var serialEnabled = selectedMode == "Serial ELM327";
-        var j2534Enabled = selectedMode == "J2534 PassThru";
+        var selectedMode = AdapterModeComboBox.SelectedItem?.ToString() ?? SerialAdapterMode;
+        var serialEnabled = selectedMode == SerialAdapterMode;
+        var j2534Enabled = selectedMode == J2534AdapterMode;
 
         PortComboBox.IsEnabled = serialEnabled;
         BaudComboBox.IsEnabled = serialEnabled;
         J2534DllComboBox.IsEnabled = j2534Enabled;
         BrowseJ2534Button.IsEnabled = j2534Enabled;
+        ProtocolComboBox.IsEnabled = serialEnabled;
     }
 
     private void SeedLivePidGrid()
@@ -608,5 +709,77 @@ public partial class MainWindow : Window
     private void RefreshReport()
     {
         ReportTextBox.Text = ObdDecoder.BuildQuickReport(Transport.ConnectionName, _lastProtocol, _lastVin, DtcRows.Where(row => row.Code != "None"), _lastReadiness);
+        if (FreezeFrameRows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Freeze Frame" + Environment.NewLine);
+            foreach (var row in FreezeFrameRows)
+            {
+                ReportTextBox.AppendText($"{row.Name}: {row.Value} {row.Unit}{Environment.NewLine}");
+            }
+        }
+    }
+
+    private void RefreshAdvisor()
+    {
+        HealthFindingRows.Clear();
+        foreach (var finding in DiagnosticAdvisor.BuildFindings(DtcRows, _lastReadiness, LivePidRows, FreezeFrameRows))
+        {
+            HealthFindingRows.Add(finding);
+        }
+
+        ReadinessGuideTextBox.Text = DiagnosticAdvisor.BuildReadinessGuide(_lastReadiness);
+    }
+
+    private void RefreshHistory()
+    {
+        SessionRows.Clear();
+        foreach (var session in _historyStore.Load().Sessions.OrderByDescending(session => session.UpdatedAt))
+        {
+            SessionRows.Add(session);
+        }
+    }
+
+    private void SaveCurrentSession()
+    {
+        var stored = DtcRows.Count(row => row.Type == "Stored" && row.Code != "None");
+        var pending = DtcRows.Count(row => row.Type == "Pending" && row.Code != "None");
+        var permanent = DtcRows.Count(row => row.Type == "Permanent" && row.Code != "None");
+        var notReady = _lastReadiness?.Monitors.Count(monitor => monitor.Status == "Not ready") ?? 0;
+        var health = HealthFindingRows.FirstOrDefault()?.Finding ?? "No findings";
+
+        var session = new DiagnosticSession
+        {
+            VehicleName = _profile.Name,
+            Vin = _lastVin,
+            Connection = Transport.ConnectionName,
+            Protocol = _lastProtocol,
+            StoredCodeCount = stored,
+            PendingCodeCount = pending,
+            PermanentCodeCount = permanent,
+            NotReadyMonitorCount = notReady,
+            HealthSummary = health
+        };
+
+        session.Events.Add(new DiagnosticEvent
+        {
+            Category = "Session",
+            Summary = "Saved diagnostic session",
+            Details = ReportTextBox.Text
+        });
+
+        _historyStore.UpsertSession(session);
+        RefreshHistory();
+        SetFooter($"Session saved to {_historyStore.HistoryPath}");
+    }
+
+    private string BuildLiveDashboard()
+    {
+        string Pick(string pid)
+        {
+            var row = LivePidRows.FirstOrDefault(item => item.Pid == pid);
+            return row is null || string.IsNullOrWhiteSpace(row.Value) ? "--" : $"{row.Value} {row.Unit}";
+        }
+
+        return $"RPM {Pick("010C")} | Speed {Pick("010D")} | Coolant {Pick("0105")} | STFT {Pick("0106")} | LTFT {Pick("0107")} | Voltage {Pick("0142")}";
     }
 }

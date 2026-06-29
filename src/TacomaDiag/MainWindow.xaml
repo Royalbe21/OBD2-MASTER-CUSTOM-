@@ -126,12 +126,14 @@
                 </StackPanel>
 
                 <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ComboBox x:Name="AdapterModeComboBox" Width="135" SelectionChanged="AdapterModeComboBox_SelectionChanged"/>
+                    <ComboBox x:Name="AdapterModeComboBox" Width="190" SelectionChanged="AdapterModeComboBox_SelectionChanged"/>
                     <Button x:Name="RefreshPortsButton" Content="Refresh" Click="RefreshPortsButton_Click"/>
                     <ComboBox x:Name="PortComboBox" Width="115"/>
                     <ComboBox x:Name="BaudComboBox" Width="105"/>
+                    <ComboBox x:Name="ProtocolComboBox" Width="135"/>
                     <ComboBox x:Name="J2534DllComboBox" Width="230"/>
                     <Button x:Name="BrowseJ2534Button" Content="Browse DLL" Click="BrowseJ2534Button_Click"/>
+                    <Button x:Name="AdapterSelfTestButton" Content="Self Test" Click="AdapterSelfTestButton_Click"/>
                     <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click"/>
                     <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
                 </WrapPanel>
@@ -155,6 +157,7 @@
                         <Button Content="Stored" Click="StoredCodesButton_Click"/>
                         <Button Content="Pending" Click="PendingCodesButton_Click"/>
                         <Button Content="Permanent" Click="PermanentCodesButton_Click"/>
+                        <Button Content="Freeze Frame" Click="FreezeFrameButton_Click"/>
                         <Button Content="Clear Codes" Background="{StaticResource DangerBrush}" Foreground="White" Click="ClearCodesButton_Click"/>
                     </StackPanel>
 
@@ -167,6 +170,63 @@
                     </DataGrid>
 
                     <TextBox x:Name="CodesLogTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Advisor">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Refresh Advisor" Click="RefreshAdvisorButton_Click"/>
+                        <Button Content="Save Session" Click="SaveSessionButton_Click"/>
+                        <Button Content="Open History Folder" Click="OpenHistoryFolderButton_Click"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="HealthFindingsDataGrid" Grid.Row="1" ItemsSource="{Binding HealthFindingRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90"/>
+                            <DataGridTextColumn Header="Area" Binding="{Binding Area}" Width="130"/>
+                            <DataGridTextColumn Header="Finding" Binding="{Binding Finding}" Width="*"/>
+                            <DataGridTextColumn Header="Next Step" Binding="{Binding NextStep}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="ReadinessGuideTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Freeze Frame">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Read Freeze Frame" Click="FreezeFrameButton_Click"/>
+                        <Button Content="Copy To Report" Click="RefreshReportButton_Click"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="FreezeFrameDataGrid" Grid.Row="1" ItemsSource="{Binding FreezeFrameRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="90"/>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="120"/>
+                            <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="FreezeFrameLogTextBox" Grid.Row="2" Margin="0,10,0,0"
                              FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </Grid>
@@ -208,6 +268,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <StackPanel Orientation="Horizontal">
@@ -228,6 +289,10 @@
                             <DataGridTextColumn Header="Supported" Binding="{Binding Supported}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
+
+                    <TextBox x:Name="LiveDashboardTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             Height="76" FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </Grid>
             </TabItem>
 
@@ -259,11 +324,39 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBox x:Name="RawCommandTextBox" Width="220" Text="0100"/>
                         <Button Content="Send" Click="RawSendButton_Click"/>
+                        <Button Content="Adapter Self Test" Click="AdapterSelfTestButton_Click"/>
                     </StackPanel>
 
                     <TextBox x:Name="TerminalTextBox" Grid.Row="1" Margin="0,10,0,0"
                              FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="History">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Refresh History" Click="RefreshHistoryButton_Click"/>
+                        <Button Content="Save Current Session" Click="SaveSessionButton_Click"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="HistoryDataGrid" Grid.Row="1" ItemsSource="{Binding SessionRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAt}" Width="150"/>
+                            <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleName}" Width="180"/>
+                            <DataGridTextColumn Header="VIN" Binding="{Binding Vin}" Width="170"/>
+                            <DataGridTextColumn Header="Connection" Binding="{Binding Connection}" Width="170"/>
+                            <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="170"/>
+                            <DataGridTextColumn Header="Codes" Binding="{Binding StoredCodeCount}" Width="70"/>
+                            <DataGridTextColumn Header="Not Ready" Binding="{Binding NotReadyMonitorCount}" Width="90"/>
+                            <DataGridTextColumn Header="Summary" Binding="{Binding HealthSummary}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
             </TabItem>
 

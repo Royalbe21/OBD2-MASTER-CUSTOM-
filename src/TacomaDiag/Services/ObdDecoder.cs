@@ -321,20 +321,42 @@ public static partial class ObdDecoder
 
     public static LivePidReading DecodeLivePid(LivePidDefinition definition, string rawResponse, bool supported)
     {
+        return DecodePidValue(definition, rawResponse, supported, 0x41, readingFactory: (value, raw) => new LivePidReading
+        {
+            Pid = definition.Pid,
+            Name = definition.Name,
+            Value = value,
+            Unit = definition.Unit,
+            Supported = supported ? "Yes" : "Unknown",
+            RawResponse = raw
+        });
+    }
+
+    public static FreezeFrameReading DecodeFreezeFramePid(LivePidDefinition definition, string rawResponse)
+    {
+        return DecodePidValue(definition, rawResponse, supported: true, 0x42, readingFactory: (value, raw) => new FreezeFrameReading
+        {
+            Pid = "02" + definition.Pid[2..],
+            Name = definition.Name,
+            Value = value,
+            Unit = definition.Unit,
+            RawResponse = raw
+        });
+    }
+
+    private static T DecodePidValue<T>(
+        LivePidDefinition definition,
+        string rawResponse,
+        bool supported,
+        int positiveResponse,
+        Func<string, string, T> readingFactory)
+    {
         var pid = Convert.ToInt32(definition.Pid[2..], 16);
-        var payload = FindPayloads(rawResponse, 0x41, pid).FirstOrDefault();
+        var payload = FindPayloads(rawResponse, positiveResponse, pid).FirstOrDefault();
 
         if (payload is null)
         {
-            return new LivePidReading
-            {
-                Pid = definition.Pid,
-                Name = definition.Name,
-                Unit = definition.Unit,
-                Supported = supported ? "Yes" : "Unknown",
-                Value = "No data",
-                RawResponse = rawResponse
-            };
+            return readingFactory(supported ? "No data" : "Unsupported", rawResponse);
         }
 
         var data = payload.Skip(2).ToArray();
@@ -342,15 +364,7 @@ public static partial class ObdDecoder
             ? converted
             : "Raw " + string.Join(" ", data.Select(valueByte => valueByte.ToString("X2", CultureInfo.InvariantCulture)));
 
-        return new LivePidReading
-        {
-            Pid = definition.Pid,
-            Name = definition.Name,
-            Value = value,
-            Unit = definition.Unit,
-            Supported = supported ? "Yes" : "Unknown",
-            RawResponse = rawResponse
-        };
+        return readingFactory(value, rawResponse);
     }
 
     public static string DecodeVin(string rawResponse)

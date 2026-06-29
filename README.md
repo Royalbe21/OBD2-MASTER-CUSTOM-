@@ -18,6 +18,12 @@ TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-cap
 - Raw Mode 6 reads
 - Read-only CAN OBD module probe using OBD service requests
 - Plain text diagnostic report export
+- Adapter self-test for serial, Bluetooth serial, demo, and J2534 workflows
+- Selectable ELM protocol profiles for broader OBD-II adapter compatibility
+- Freeze-frame reader for key Mode 02 data points
+- Advisor tab with health findings, next steps, and readiness guidance
+- Session history saved under local app data
+- Dark workstation-style interface
 
 ## Important limits
 
