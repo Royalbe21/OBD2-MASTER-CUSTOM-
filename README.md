@@ -34,6 +34,19 @@ cd C:\Users\royal\TacomaDiag
 dotnet build .\TacomaDiag.slnx
 ```
 
+## Build installer
+
+```powershell
+cd C:\Users\royal\TacomaDiag
+.\build-installer.ps1
+```
+
+The installer is created at:
+
+```text
+C:\Users\royal\TacomaDiag\installer\output\TacomaDiagSetup.exe
+```
+
 ## Run
 
 ```powershell

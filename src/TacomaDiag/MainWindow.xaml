@@ -7,19 +7,78 @@
         Title="TacomaDiag" Height="780" Width="1160" MinHeight="650" MinWidth="980"
         Loaded="Window_Loaded" Closing="Window_Closing">
     <Window.Resources>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#101418"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#171D23"/>
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#202832"/>
+        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#2B3540"/>
+        <SolidColorBrush x:Key="BorderBrushDark" Color="#3B4652"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8EDF2"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#AAB6C2"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#2BB3A3"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#36C7B6"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#B91C1C"/>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        </Style>
+
         <Style TargetType="Button">
             <Setter Property="Margin" Value="0,0,8,0"/>
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="MinWidth" Value="92"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Foreground" Value="#06110F"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="Margin" Value="0,0,8,0"/>
             <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="Margin" Value="0,0,8,0"/>
             <Setter Property="MinHeight" Value="30"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentHoverBrush}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}"/>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="0,0,3,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style TargetType="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -28,21 +87,42 @@
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="Margin" Value="0,10,0,0"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="RowBackground" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource SurfaceAltBrush}"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+        </Style>
+        <Style TargetType="StatusBar">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
         </Style>
     </Window.Resources>
 
-    <Grid Background="#F3F4F6">
+    <Grid Background="{StaticResource AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#172033" Padding="16">
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="0,0,0,1" Padding="16">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Left" Orientation="Vertical" Margin="0,0,24,0">
-                    <TextBlock Text="TacomaDiag" Foreground="White" FontSize="24" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="ProfileTextBlock" Foreground="#CBD5E1" Margin="0,3,0,0"/>
+                    <TextBlock Text="TacomaDiag" Foreground="{StaticResource TextPrimaryBrush}" FontSize="24" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ProfileTextBlock" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
                 </StackPanel>
 
                 <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -56,7 +136,7 @@
                     <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
                 </WrapPanel>
 
-                <TextBlock x:Name="ConnectionStatusTextBlock" Foreground="#E5E7EB" FontSize="14"
+                <TextBlock x:Name="ConnectionStatusTextBlock" Foreground="{StaticResource TextSecondaryBrush}" FontSize="14"
                            VerticalAlignment="Center" TextWrapping="Wrap"/>
             </DockPanel>
         </Border>
@@ -75,7 +155,7 @@
                         <Button Content="Stored" Click="StoredCodesButton_Click"/>
                         <Button Content="Pending" Click="PendingCodesButton_Click"/>
                         <Button Content="Permanent" Click="PermanentCodesButton_Click"/>
-                        <Button Content="Clear Codes" Background="#B91C1C" Foreground="White" Click="ClearCodesButton_Click"/>
+                        <Button Content="Clear Codes" Background="{StaticResource DangerBrush}" Foreground="White" Click="ClearCodesButton_Click"/>
                     </StackPanel>
 
                     <DataGrid x:Name="DtcDataGrid" Grid.Row="1" ItemsSource="{Binding DtcRows}">

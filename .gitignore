@@ -8,5 +8,6 @@ obj/
 *.log
 TestResults/
 publish/
+installer/output/
 *.zip
 *.nupkg
