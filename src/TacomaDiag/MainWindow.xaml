@@ -1,0 +1,215 @@
+<Window x:Class="TacomaDiag.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="TacomaDiag" Height="780" Width="1160" MinHeight="650" MinWidth="980"
+        Loaded="Window_Loaded" Closing="Window_Closing">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="MinWidth" Value="92"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F3F4F6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#172033" Padding="16">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left" Orientation="Vertical" Margin="0,0,24,0">
+                    <TextBlock Text="TacomaDiag" Foreground="White" FontSize="24" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ProfileTextBlock" Foreground="#CBD5E1" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ComboBox x:Name="AdapterModeComboBox" Width="135" SelectionChanged="AdapterModeComboBox_SelectionChanged"/>
+                    <Button x:Name="RefreshPortsButton" Content="Refresh" Click="RefreshPortsButton_Click"/>
+                    <ComboBox x:Name="PortComboBox" Width="115"/>
+                    <ComboBox x:Name="BaudComboBox" Width="105"/>
+                    <ComboBox x:Name="J2534DllComboBox" Width="230"/>
+                    <Button x:Name="BrowseJ2534Button" Content="Browse DLL" Click="BrowseJ2534Button_Click"/>
+                    <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click"/>
+                    <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
+                </WrapPanel>
+
+                <TextBlock x:Name="ConnectionStatusTextBlock" Foreground="#E5E7EB" FontSize="14"
+                           VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </DockPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" Margin="14">
+            <TabItem Header="Codes">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Full Scan" Click="FullScanButton_Click"/>
+                        <Button Content="Stored" Click="StoredCodesButton_Click"/>
+                        <Button Content="Pending" Click="PendingCodesButton_Click"/>
+                        <Button Content="Permanent" Click="PermanentCodesButton_Click"/>
+                        <Button Content="Clear Codes" Background="#B91C1C" Foreground="White" Click="ClearCodesButton_Click"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="DtcDataGrid" Grid.Row="1" ItemsSource="{Binding DtcRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110"/>
+                            <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="110"/>
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="CodesLogTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Readiness">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Check Readiness" Click="ReadinessButton_Click"/>
+                        <Button Content="Read VIN" Click="VinButton_Click"/>
+                    </StackPanel>
+
+                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,12,0,0">
+                        <TextBlock x:Name="MilTextBlock" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="DtcCountTextBlock" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="EngineTypeTextBlock" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="VinTextBlock" FontSize="16" FontWeight="SemiBold"/>
+                    </UniformGrid>
+
+                    <DataGrid x:Name="ReadinessDataGrid" Grid.Row="2" ItemsSource="{Binding MonitorRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Monitor" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Supported" Binding="{Binding Supported}" Width="120"/>
+                            <DataGridTextColumn Header="Ready" Binding="{Binding Ready}" Width="120"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Live Data">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Load Support" Click="LoadSupportedPidsButton_Click"/>
+                        <Button Content="Read Once" Click="ReadLiveOnceButton_Click"/>
+                        <Button Content="Start Polling" Click="StartPollingButton_Click"/>
+                        <Button Content="Stop" Click="StopPollingButton_Click"/>
+                        <TextBlock Text="Interval ms" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                        <TextBox x:Name="PollIntervalTextBox" Text="1000" Width="80"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="LiveDataGrid" Grid.Row="1" ItemsSource="{Binding LivePidRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="90"/>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="120"/>
+                            <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
+                            <DataGridTextColumn Header="Supported" Binding="{Binding Supported}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Mode 6 / Modules">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Read Mode 6" Click="Mode6Button_Click"/>
+                        <Button Content="Probe Modules" Click="ProbeModulesButton_Click"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="Mode6TextBox" Grid.Row="1" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Raw Terminal">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="RawCommandTextBox" Width="220" Text="0100"/>
+                        <Button Content="Send" Click="RawSendButton_Click"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="TerminalTextBox" Grid.Row="1" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Report">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Refresh Report" Click="RefreshReportButton_Click"/>
+                        <Button Content="Save Report" Click="SaveReportButton_Click"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="ReportTextBox" Grid.Row="1" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <TextBlock x:Name="FooterStatusTextBlock" Text="Ready"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
