@@ -71,6 +71,19 @@ public static class DiagnosticWorkflowCatalog
                 Step(3, "Probe Modules only when connected to the vehicle and ready.", "The probe logs responding ECU headers without clearing or writing data.", "Stop if responses are inconsistent or the adapter locks up."),
                 Step(4, "Save a session/report for the adapter.", "The history shows connection name and protocol.", "Keep one known-good adapter baseline for comparison.")
             ]
+        },
+        new()
+        {
+            Name = "Jeep Compass transmission module scan",
+            Objective = "Read Chrysler/FCA transmission-controller DTCs and identity data without writing or clearing anything.",
+            WhenToUse = "2016 Jeep Compass FWD four-cylinder with CVT/automatic concerns, limp mode, shift issues, or transmission MIL request.",
+            Steps =
+            [
+                Step(1, "Select the 2016 Jeep Compass FWD 4-cylinder profile.", "The profile notes show Chrysler/FCA CAN expectations.", "Do not continue enhanced scanning under the Toyota profile."),
+                Step(2, "Connect with Serial/Bluetooth ELM327 or J2534 and force CAN 11/500 if auto-detect is unstable.", "ATDP reports ISO 15765-4 CAN.", "Try J2534 if ELM enhanced module responses are missing or inconsistent."),
+                Step(3, "Use Transmission Scan in Mode 6 / Modules.", "TCM candidates respond with DTC records, ECU ID, or a clear unsupported/no-response status.", "If both TCM candidates fail, use a stronger J2534 adapter or Chrysler-capable scan tool."),
+                Step(4, "Save the report before clearing or repairing anything.", "Transmission module raw responses are preserved.", "MPPS should not be used for diagnosis except as an external ECU/TCU file tool where appropriate.")
+            ]
         }
     ];
 

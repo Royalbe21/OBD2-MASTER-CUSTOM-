@@ -2,6 +2,8 @@
 
 TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-capable OBD-II adapter on a 2008 Toyota Tacoma Base 2.7L 2TR-FE.
 
+It also includes a 2016 Jeep Compass FWD four-cylinder profile for Chrysler/FCA read-only scan work.
+
 ## Current prototype features
 
 - USB/Bluetooth serial ELM327 connection through Windows COM ports
@@ -27,6 +29,9 @@ TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-cap
 - Generic Mode 06 monitor-test decoding with raw logs for manufacturer-specific rows
 - Live-data recording with CSV export for before/after repair comparisons
 - HTML report export with advisor findings and recent live-recording frames
+- MPPS V16 companion-tool tab for finding, selecting, launching, and documenting an installed MPPS executable
+- 2016 Jeep Compass FWD four-cylinder profile with Chrysler/FCA enhanced module-scan targets
+- Transmission-priority module scan for Jeep/Chrysler TCM candidates using read-only UDS-style requests where supported
 - Dark workstation-style interface
 
 ## Important limits
@@ -34,6 +39,10 @@ TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-cap
 Plain serial ELM327 adapters can perform generic OBD-II diagnostics very well, but they are not equivalent to Toyota Techstream with a J2534 interface. If your adapter exposes a J2534 PassThru DLL, TacomaDiag can use that DLL for ISO 15765-4 CAN OBD-II communication while keeping serial ELM327 support for older adapters.
 
 TacomaDiag intentionally does not include ECU programming, immobilizer functions, SRS clearing, ABS bleeding, or unsafe bidirectional controls.
+
+MPPS V16 is handled as an external ECU flasher companion. TacomaDiag can scan for `mpps.exe`, launch it, and add MPPS readiness/safety notes to reports, but it does not automate MPPS ECU read/write operations. Use TacomaDiag's J2534 mode only if the MPPS package or another adapter installs a real SAE J2534 PassThru DLL.
+
+For the 2016 Jeep Compass, use the ELM/J2534 diagnostic connection for scanning. MPPS V16 is not the preferred tool for module diagnostics; it is treated as a separate ECU/TCU read/write companion. Full Chrysler module functionality depends on adapter quality, module addressing, and Chrysler-enhanced service definitions. The built-in enhanced scan uses read-only requests and does not perform coding, programming, immobilizer work, or bidirectional actuator tests.
 
 Readiness cannot be forced ready by software. Clearing DTCs resets readiness monitors. The truck must run the required monitor checks during normal or drive-cycle operation.
 

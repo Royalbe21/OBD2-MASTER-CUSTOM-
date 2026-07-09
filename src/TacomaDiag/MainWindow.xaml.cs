@@ -18,13 +18,14 @@ public partial class MainWindow : Window
     private readonly Elm327Client _elm = new();
     private readonly J2534Client _j2534 = new();
     private readonly DiagnosticHistoryStore _historyStore = new();
-    private readonly VehicleProfile _profile = VehicleProfile.ToyotaTacoma2008Base2TrFe;
     private readonly HashSet<int> _supportedPids = [];
     private readonly List<LiveRecordingFrame> _liveRecordingFrames = [];
     private IObdTransport? _transport;
     private CancellationTokenSource? _pollingCancellation;
     private ReadinessSnapshot? _lastReadiness;
+    private VehicleProfile _profile = VehicleProfile.ToyotaTacoma2008Base2TrFe;
     private DiagnosticWorkflow? _selectedWorkflow;
+    private MppsToolInfo? _selectedMppsTool;
     private bool _isRecordingLiveData;
     private DateTime? _recordingStartedAt;
     private string _lastProtocol = "";
@@ -38,6 +39,8 @@ public partial class MainWindow : Window
     public ObservableCollection<HealthFinding> HealthFindingRows { get; } = [];
     public ObservableCollection<DiagnosticSession> SessionRows { get; } = [];
     public ObservableCollection<Mode6TestResult> Mode6Rows { get; } = [];
+    public ObservableCollection<MppsToolInfo> MppsTools { get; } = [];
+    public ObservableCollection<ModuleScanResult> ModuleScanRows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -50,7 +53,9 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _transport = _elm;
-        ProfileTextBlock.Text = $"{_profile.Name} | {_profile.Engine} | {_profile.ExpectedProtocol}";
+        VehicleProfileComboBox.ItemsSource = VehicleProfile.BuiltInProfiles;
+        VehicleProfileComboBox.SelectedItem = _profile;
+        UpdateProfileText();
         AdapterModeComboBox.ItemsSource = new[] { SerialAdapterMode, J2534AdapterMode, DemoAdapterMode };
         AdapterModeComboBox.SelectedIndex = 0;
         ProtocolComboBox.ItemsSource = AdapterProfile.ElmProtocols;
@@ -60,6 +65,7 @@ public partial class MainWindow : Window
         BaudComboBox.ItemsSource = new[] { 9600, 38400, 115200, 500000 };
         BaudComboBox.SelectedItem = 38400;
         RefreshPorts();
+        RefreshMppsTools();
         RefreshHistory();
         SeedLivePidGrid();
         LoadSelectedWorkflow();
@@ -87,6 +93,19 @@ public partial class MainWindow : Window
         UpdateAdapterControlState();
     }
 
+    private void VehicleProfileComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (VehicleProfileComboBox.SelectedItem is not VehicleProfile profile)
+        {
+            return;
+        }
+
+        _profile = profile;
+        UpdateProfileText();
+        ApplyRecommendedProtocolForProfile();
+        RefreshReport();
+    }
+
     private void BrowseJ2534Button_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
@@ -105,6 +124,14 @@ public partial class MainWindow : Window
         J2534Devices.Add(manualDevice);
         J2534DllComboBox.SelectedItem = manualDevice;
         AdapterModeComboBox.SelectedItem = J2534AdapterMode;
+    }
+
+    private void MppsToolComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (MppsToolComboBox.SelectedItem is MppsToolInfo tool)
+        {
+            SelectMppsTool(tool);
+        }
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -346,6 +373,78 @@ public partial class MainWindow : Window
     private async void ProbeModulesButton_Click(object sender, RoutedEventArgs e)
     {
         await RunUiTaskAsync(ProbeModulesAsync);
+    }
+
+    private async void EnhancedModuleScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => EnhancedModuleScanAsync(transmissionOnly: false));
+    }
+
+    private async void TransmissionModuleScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => EnhancedModuleScanAsync(transmissionOnly: true));
+    }
+
+    private void ScanMppsButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshMppsTools();
+    }
+
+    private void BrowseMppsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select MPPS V16 executable",
+            Filter = "MPPS executable (*.exe)|*.exe|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var manualTool = MppsToolDiscovery.FromManualPath(dialog.FileName);
+        MppsTools.Add(manualTool);
+        MppsToolComboBox.SelectedItem = manualTool;
+        SelectMppsTool(manualTool);
+    }
+
+    private void LaunchMppsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var tool = GetSelectedMppsTool();
+        if (tool is null || !File.Exists(tool.ExecutablePath))
+        {
+            MessageBox.Show(this, "Select a valid MPPS executable first.", "TacomaDiag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            this,
+            "Launch MPPS V16? ECU read/write operations happen inside MPPS. Keep stable battery support connected and save original ECU files before writing.",
+            "Launch MPPS V16",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (answer != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(tool.ExecutablePath)
+        {
+            UseShellExecute = true,
+            WorkingDirectory = Path.GetDirectoryName(tool.ExecutablePath) ?? ""
+        });
+
+        SetFooter($"Launched MPPS: {tool.ExecutablePath}");
+    }
+
+    private void AddMppsToReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        SelectMppsTool(GetSelectedMppsTool());
+        RefreshReport();
+        ReportTextBox.AppendText(Environment.NewLine + MppsNotesTextBox.Text + Environment.NewLine);
     }
 
     private async void RawSendButton_Click(object sender, RoutedEventArgs e)
@@ -627,6 +726,97 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task EnhancedModuleScanAsync(bool transmissionOnly)
+    {
+        EnsureConnected();
+
+        var targets = ChryslerModuleCatalog.GetTargets(_profile);
+        if (targets.Count == 0)
+        {
+            MessageBox.Show(this, "Enhanced module targets are not defined for the selected vehicle profile yet.", "TacomaDiag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var selectedTargets = targets
+            .Where(target => !transmissionOnly || target.System.Equals("Transmission", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (!transmissionOnly)
+        {
+            ModuleScanRows.Clear();
+            AppendMode6($"Read-only enhanced module scan started for {_profile.Name}.");
+        }
+        else
+        {
+            AppendMode6($"Read-only transmission module scan started for {_profile.Name}.");
+        }
+
+        try
+        {
+            foreach (var command in new[] { "ATH1", "ATS1", "ATCAF1", "ATSP6", "ATAT2", "ATSTFF" })
+            {
+                var response = await Transport.SendCommandAsync(command, timeoutMs: 3000);
+                AppendMode6($"> {command}{Environment.NewLine}{response}");
+            }
+
+            foreach (var target in selectedTargets)
+            {
+                var scan = await ScanModuleTargetAsync(target);
+                ModuleScanRows.Add(scan);
+            }
+        }
+        finally
+        {
+            await Transport.SendCommandAsync("ATSH7DF", timeoutMs: 3000);
+            await Transport.SendCommandAsync("ATH0", timeoutMs: 3000);
+            await Transport.SendCommandAsync("ATS0", timeoutMs: 3000);
+            AppendMode6("Enhanced module scan finished. Header display restored off.");
+        }
+
+        RefreshReport();
+    }
+
+    private async Task<ModuleScanResult> ScanModuleTargetAsync(VehicleModuleTarget target)
+    {
+        var headerResponse = await Transport.SendCommandAsync($"ATSH{target.RequestHeader}", timeoutMs: 3000);
+        AppendMode6($"> ATSH{target.RequestHeader}{Environment.NewLine}{headerResponse}");
+
+        var dtcResponse = await Transport.SendCommandAsync("1902FF", timeoutMs: 6500);
+        AppendMode6($"> {target.RequestHeader} 1902FF{Environment.NewLine}{dtcResponse}");
+        var dtcs = ObdDecoder.DecodeUdsDtcResponse(dtcResponse);
+
+        var idResponse = await Transport.SendCommandAsync("22F190", timeoutMs: 5000);
+        AppendMode6($"> {target.RequestHeader} 22F190{Environment.NewLine}{idResponse}");
+        var ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(idResponse, 0x62, 0xF1, 0x90);
+
+        if (string.IsNullOrWhiteSpace(ecuId))
+        {
+            var partResponse = await Transport.SendCommandAsync("22F187", timeoutMs: 5000);
+            AppendMode6($"> {target.RequestHeader} 22F187{Environment.NewLine}{partResponse}");
+            ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(partResponse, 0x62, 0xF1, 0x87);
+            idResponse += Environment.NewLine + partResponse;
+        }
+
+        var status = dtcs.Count > 0 || !LooksLikeNoData(dtcResponse) || !string.IsNullOrWhiteSpace(ecuId)
+            ? "Responded"
+            : "No response";
+
+        var dtcSummary = dtcs.Count == 0
+            ? LooksLikeNoData(dtcResponse) ? "No response / unsupported" : "No DTC records decoded"
+            : string.Join("; ", dtcs.Select(dtc => $"{dtc.Code} status {dtc.Status}"));
+
+        return new ModuleScanResult
+        {
+            Module = target.Name,
+            System = target.System,
+            RequestHeader = target.RequestHeader,
+            Status = status,
+            DtcSummary = dtcSummary,
+            EcuId = ecuId,
+            RawResponse = dtcResponse + Environment.NewLine + idResponse
+        };
+    }
+
     private async Task PollLiveDataAsync(int intervalMs, CancellationToken cancellationToken)
     {
         try
@@ -694,6 +884,28 @@ public partial class MainWindow : Window
         var serialStatus = ports.Length == 0 ? "No COM ports found" : $"Found {ports.Length} COM port(s)";
         var j2534Status = J2534Devices.Count == 0 ? "no J2534 DLLs found" : $"{J2534Devices.Count} J2534 DLL(s) found";
         SetFooter($"{serialStatus}; {j2534Status}.");
+    }
+
+    private void RefreshMppsTools()
+    {
+        MppsTools.Clear();
+        foreach (var tool in MppsToolDiscovery.FindInstalledTools())
+        {
+            MppsTools.Add(tool);
+        }
+
+        MppsToolComboBox.ItemsSource = MppsTools;
+        if (MppsTools.Count > 0)
+        {
+            MppsToolComboBox.SelectedIndex = 0;
+            SelectMppsTool(MppsTools[0]);
+            SetFooter($"Found {MppsTools.Count} MPPS tool candidate(s).");
+        }
+        else
+        {
+            SelectMppsTool(null);
+            SetFooter("No MPPS executable found automatically. Use Browse EXE if MPPS is installed.");
+        }
     }
 
     private void DisconnectTransports()
@@ -816,6 +1028,23 @@ public partial class MainWindow : Window
             ReportTextBox.AppendText(Environment.NewLine + "Selected Workflow" + Environment.NewLine);
             ReportTextBox.AppendText($"{_selectedWorkflow.Name}: {_selectedWorkflow.Objective}{Environment.NewLine}");
         }
+
+        if (ModuleScanRows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Enhanced Module Scan" + Environment.NewLine);
+            foreach (var row in ModuleScanRows)
+            {
+                ReportTextBox.AppendText($"{row.Module} ({row.RequestHeader}): {row.Status}; {row.DtcSummary}; ECU ID {row.EcuId}{Environment.NewLine}");
+            }
+        }
+
+        if (_selectedMppsTool is not null)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "MPPS V16 Tool" + Environment.NewLine);
+            ReportTextBox.AppendText($"Executable: {_selectedMppsTool.ExecutablePath}{Environment.NewLine}");
+            ReportTextBox.AppendText($"Source: {_selectedMppsTool.Source}{Environment.NewLine}");
+            ReportTextBox.AppendText($"Status: {_selectedMppsTool.Status}{Environment.NewLine}");
+        }
     }
 
     private void RefreshAdvisor()
@@ -880,6 +1109,47 @@ public partial class MainWindow : Window
         }
 
         return $"RPM {Pick("010C")} | Speed {Pick("010D")} | Coolant {Pick("0105")} | STFT {Pick("0106")} | LTFT {Pick("0107")} | Voltage {Pick("0142")}";
+    }
+
+    private void UpdateProfileText()
+    {
+        ProfileTextBlock.Text = $"{_profile.Name} | {_profile.Engine} | {_profile.ExpectedProtocol}";
+    }
+
+    private void ApplyRecommendedProtocolForProfile()
+    {
+        if (ProtocolComboBox.ItemsSource is not IEnumerable<AdapterProfile> profiles)
+        {
+            return;
+        }
+
+        var canProfile = profiles.FirstOrDefault(profile => profile.Command == "ATSP6");
+        if (canProfile is not null && _profile.ExpectedProtocol.Contains("CAN", StringComparison.OrdinalIgnoreCase))
+        {
+            ProtocolComboBox.SelectedItem = canProfile;
+        }
+    }
+
+    private static bool LooksLikeNoData(string response)
+    {
+        return string.IsNullOrWhiteSpace(response) ||
+            response.Contains("NO DATA", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("UNABLE", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("CAN ERROR", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("STOPPED", StringComparison.OrdinalIgnoreCase) ||
+            response.Trim().Equals("?", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private MppsToolInfo? GetSelectedMppsTool()
+    {
+        return MppsToolComboBox.SelectedItem as MppsToolInfo ?? _selectedMppsTool;
+    }
+
+    private void SelectMppsTool(MppsToolInfo? tool)
+    {
+        _selectedMppsTool = tool;
+        MppsPathTextBox.Text = tool is null ? "No MPPS executable selected." : tool.ExecutablePath;
+        MppsNotesTextBox.Text = MppsToolDiscovery.BuildSafetyChecklist(tool);
     }
 
     private void LoadSelectedWorkflow()

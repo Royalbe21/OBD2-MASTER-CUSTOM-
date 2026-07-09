@@ -122,6 +122,7 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Left" Orientation="Vertical" Margin="0,0,24,0">
                     <TextBlock Text="TacomaDiag" Foreground="{StaticResource TextPrimaryBrush}" FontSize="24" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="VehicleProfileComboBox" Width="260" Margin="0,5,0,4" SelectionChanged="VehicleProfileComboBox_SelectionChanged"/>
                     <TextBlock x:Name="ProfileTextBlock" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
                 </StackPanel>
 
@@ -330,20 +331,63 @@
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Read Mode 6" Click="Mode6Button_Click"/>
                         <Button Content="Probe Modules" Click="ProbeModulesButton_Click"/>
+                        <Button Content="Enhanced Module Scan" Click="EnhancedModuleScanButton_Click"/>
+                        <Button Content="Transmission Scan" Click="TransmissionModuleScanButton_Click"/>
                     </StackPanel>
 
-                    <DataGrid x:Name="Mode6DataGrid" Grid.Row="1" ItemsSource="{Binding Mode6Rows}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Test ID" Binding="{Binding TestId}" Width="*"/>
-                            <DataGridTextColumn Header="CID" Binding="{Binding ComponentId}" Width="80"/>
-                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="110"/>
-                            <DataGridTextColumn Header="Min" Binding="{Binding Minimum}" Width="110"/>
-                            <DataGridTextColumn Header="Max" Binding="{Binding Maximum}" Width="110"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <TabControl Grid.Row="1" Margin="0,10,0,0">
+                        <TabItem Header="Mode 6">
+                            <DataGrid x:Name="Mode6DataGrid" ItemsSource="{Binding Mode6Rows}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Test ID" Binding="{Binding TestId}" Width="*"/>
+                                    <DataGridTextColumn Header="CID" Binding="{Binding ComponentId}" Width="80"/>
+                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="110"/>
+                                    <DataGridTextColumn Header="Min" Binding="{Binding Minimum}" Width="110"/>
+                                    <DataGridTextColumn Header="Max" Binding="{Binding Maximum}" Width="110"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                        <TabItem Header="Module Scan">
+                            <DataGrid x:Name="ModuleScanDataGrid" ItemsSource="{Binding ModuleScanRows}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Module" Binding="{Binding Module}" Width="170"/>
+                                    <DataGridTextColumn Header="System" Binding="{Binding System}" Width="110"/>
+                                    <DataGridTextColumn Header="Header" Binding="{Binding RequestHeader}" Width="80"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130"/>
+                                    <DataGridTextColumn Header="DTCs" Binding="{Binding DtcSummary}" Width="*"/>
+                                    <DataGridTextColumn Header="ECU ID" Binding="{Binding EcuId}" Width="180"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                    </TabControl>
 
                     <TextBox x:Name="Mode6TextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="MPPS V16">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Scan MPPS" Click="ScanMppsButton_Click"/>
+                        <ComboBox x:Name="MppsToolComboBox" Width="330" SelectionChanged="MppsToolComboBox_SelectionChanged"/>
+                        <Button Content="Browse EXE" Click="BrowseMppsButton_Click"/>
+                        <Button Content="Launch MPPS" Click="LaunchMppsButton_Click"/>
+                        <Button Content="Add To Report" Click="AddMppsToReportButton_Click"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="MppsPathTextBox" Grid.Row="1" Margin="0,10,0,0"
+                             IsReadOnly="True" FontFamily="Consolas" TextWrapping="Wrap"/>
+
+                    <TextBox x:Name="MppsNotesTextBox" Grid.Row="2" Margin="0,10,0,0"
                              FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </Grid>

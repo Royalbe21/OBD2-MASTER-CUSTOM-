@@ -442,6 +442,7 @@ public sealed class J2534Client : IObdTransport
         }
 
         if (command.StartsWith("ATSP", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("ATCAF", StringComparison.OrdinalIgnoreCase) ||
             command.StartsWith("ATAT", StringComparison.OrdinalIgnoreCase) ||
             command.StartsWith("ATST", StringComparison.OrdinalIgnoreCase) ||
             command.StartsWith("ATE", StringComparison.OrdinalIgnoreCase) ||

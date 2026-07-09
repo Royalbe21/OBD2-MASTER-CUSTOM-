@@ -440,6 +440,50 @@ public static partial class ObdDecoder
         return rows;
     }
 
+    public static IReadOnlyList<ModuleDtc> DecodeUdsDtcResponse(string rawResponse)
+    {
+        var rows = new List<ModuleDtc>();
+        foreach (var payload in FindPayloads(rawResponse, 0x59, 0x02))
+        {
+            if (payload.Count < 7)
+            {
+                continue;
+            }
+
+            var start = 3;
+            for (var index = start; index + 3 < payload.Count; index += 4)
+            {
+                rows.Add(new ModuleDtc
+                {
+                    Code = DecodeThreeByteDtc(payload[index], payload[index + 1], payload[index + 2]),
+                    Status = $"0x{payload[index + 3]:X2}",
+                    RawBytes = $"{payload[index]:X2} {payload[index + 1]:X2} {payload[index + 2]:X2} {payload[index + 3]:X2}"
+                });
+            }
+        }
+
+        return rows;
+    }
+
+    public static string DecodeAsciiFromPositiveResponse(string rawResponse, int positiveResponse, int didHigh, int didLow)
+    {
+        var payload = FindPayloads(rawResponse, positiveResponse).FirstOrDefault(candidate =>
+            candidate.Count >= 4 && candidate[1] == didHigh && candidate[2] == didLow);
+
+        if (payload is null)
+        {
+            return "";
+        }
+
+        var text = new string(payload
+            .Skip(3)
+            .Where(value => value is >= 0x20 and <= 0x7E)
+            .Select(value => (char)value)
+            .ToArray());
+
+        return text.Trim();
+    }
+
     public static string BuildQuickReport(
         string connection,
         string protocol,
@@ -601,6 +645,21 @@ public static partial class ObdDecoder
         };
 
         return string.Create(CultureInfo.InvariantCulture, $"{system}{(first & 0x30) >> 4:X1}{first & 0x0F:X1}{(second & 0xF0) >> 4:X1}{second & 0x0F:X1}");
+    }
+
+    private static string DecodeThreeByteDtc(byte first, byte second, byte third)
+    {
+        var system = ((first & 0xC0) >> 6) switch
+        {
+            0 => "P",
+            1 => "C",
+            2 => "B",
+            3 => "U",
+            _ => "P"
+        };
+
+        var firstDigit = (first & 0x30) >> 4;
+        return string.Create(CultureInfo.InvariantCulture, $"{system}{firstDigit:X1}{first & 0x0F:X1}{(second & 0xF0) >> 4:X1}{second & 0x0F:X1}-{third:X2}");
     }
 
     private static string GetDtcDescription(string code)
