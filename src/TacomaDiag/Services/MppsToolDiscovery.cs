@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System.IO;
+using System.Management;
 using TacomaDiag.Models;
 
 namespace TacomaDiag.Services;
@@ -45,17 +46,96 @@ public static class MppsToolDiscovery
         };
     }
 
-    public static string BuildSafetyChecklist(MppsToolInfo? selectedTool)
+    public static IReadOnlyList<MppsUsbDeviceInfo> FindConnectedUsbDevices()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return [];
+        }
+
+        var devices = new List<MppsUsbDeviceInfo>();
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "root\\CIMV2",
+                "SELECT * FROM Win32_PnPEntity WHERE PNPDeviceID LIKE 'USB%'");
+
+            foreach (ManagementObject device in searcher.Get().Cast<ManagementObject>())
+            {
+                var name = ReadManagementString(device, "Name");
+                var pnpDeviceId = ReadManagementString(device, "PNPDeviceID");
+                if (!LooksLikeMppsDevice(name, pnpDeviceId))
+                {
+                    continue;
+                }
+
+                devices.Add(new MppsUsbDeviceInfo
+                {
+                    Name = name,
+                    PnpDeviceId = pnpDeviceId,
+                    Manufacturer = ReadManagementString(device, "Manufacturer"),
+                    Service = ReadManagementString(device, "Service"),
+                    Status = ReadManagementString(device, "Status"),
+                    ConfigManagerErrorCode = ReadNullableInt(device, "ConfigManagerErrorCode"),
+                    HardwareIds = ReadManagementStringArray(device, "HardwareID")
+                });
+            }
+        }
+        catch (ManagementException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        return devices
+            .GroupBy(device => device.PnpDeviceId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(device => device.Name)
+            .ToArray();
+    }
+
+    public static string BuildSafetyChecklist(
+        MppsToolInfo? selectedTool,
+        IReadOnlyList<MppsUsbDeviceInfo>? usbDevices = null,
+        int j2534DeviceCount = 0)
     {
         var path = selectedTool?.ExecutablePath ?? "Not selected";
         var status = selectedTool is null ? "Not configured" : selectedTool.Status;
-        return string.Join(Environment.NewLine,
-        [
+        var lines = new List<string>
+        {
             "MPPS V16 Integration",
             "====================",
             $"Selected executable: {path}",
             $"Status: {status}",
             "",
+            "Windows USB status:"
+        };
+
+        if (usbDevices is { Count: > 0 })
+        {
+            foreach (var device in usbDevices)
+            {
+                lines.Add($"- {device.Name}: {device.DriverSummary}");
+                lines.Add($"  PNP ID: {device.PnpDeviceId}");
+                if (device.HardwareIds.Count > 0)
+                {
+                    lines.Add($"  Hardware IDs: {string.Join(", ", device.HardwareIds)}");
+                }
+            }
+        }
+        else
+        {
+            lines.Add("- No MPPS USB device found by Windows PnP.");
+        }
+
+        lines.Add("");
+        lines.Add($"J2534 PassThru DLLs registered on this PC: {j2534DeviceCount}");
+        lines.Add("");
+        lines.AddRange(
+        [
             "TacomaDiag treats MPPS V16 as an external ECU flasher companion.",
             "MPPS V16 does not expose a known ELM327-style serial command set.",
             "Use TacomaDiag for scan/readiness/report work and launch MPPS only for MPPS-supported ECU read/write workflows.",
@@ -70,6 +150,8 @@ public static class MppsToolDiscovery
             "",
             "If your MPPS package installed a real J2534 PassThru DLL, use TacomaDiag's J2534 mode instead of this launcher."
         ]);
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static IEnumerable<MppsToolInfo> FindFromUninstallRegistry()
@@ -177,5 +259,30 @@ public static class MppsToolDiscovery
     private static string ReadString(RegistryKey key, string valueName)
     {
         return key.GetValue(valueName)?.ToString()?.Trim() ?? "";
+    }
+
+    private static bool LooksLikeMppsDevice(string name, string pnpDeviceId)
+    {
+        return pnpDeviceId.Contains(@"USB\VID_1C43&PID_0500", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Amt Flash", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("MPPS", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ReadManagementString(ManagementObject device, string propertyName)
+    {
+        return device.Properties[propertyName]?.Value?.ToString()?.Trim() ?? "";
+    }
+
+    private static int? ReadNullableInt(ManagementObject device, string propertyName)
+    {
+        var value = device.Properties[propertyName]?.Value;
+        return value is null ? null : Convert.ToInt32(value);
+    }
+
+    private static IReadOnlyList<string> ReadManagementStringArray(ManagementObject device, string propertyName)
+    {
+        return device.Properties[propertyName]?.Value is string[] values
+            ? values.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray()
+            : [];
     }
 }

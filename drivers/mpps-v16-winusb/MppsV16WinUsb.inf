@@ -1,0 +1,40 @@
+; TacomaDiag MPPS V16 WinUSB binding package.
+; This binds USB\VID_1C43&PID_0500 to Microsoft's inbox WinUSB driver.
+; It is not the original MPPS vendor driver and does not implement the MPPS protocol.
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = USBDevice
+ClassGuid   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider    = %ProviderName%
+CatalogFile = MppsV16WinUsb.cat
+DriverVer   = 07/11/2026,1.0.0.0
+PnpLockdown = 1
+
+[Manufacturer]
+%ProviderName% = Standard,NTamd64
+
+[Standard.NTamd64]
+%MppsV16.DeviceDesc% = USB_Install, USB\VID_1C43&PID_0500
+
+[USB_Install.NT]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.NT.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[USB_Install.NT.HW]
+AddReg = DeviceInterfaceGUIDs_AddReg
+
+[USB_Install.NT.Wdf]
+Include = winusb.inf
+Needs   = WINUSB.NT.Wdf
+
+[DeviceInterfaceGUIDs_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{F05D9F7C-6F96-4D7D-9EB3-30CDE2C9D807}"
+
+[Strings]
+ProviderName       = "TacomaDiag"
+MppsV16.DeviceDesc = "MPPS V16 WinUSB Interface"

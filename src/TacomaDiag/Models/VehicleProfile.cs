@@ -11,7 +11,26 @@ public sealed class VehicleProfile
     public string Notes { get; init; } = "";
     public string ManufacturerFamily { get; init; } = "";
 
-    public static IReadOnlyList<VehicleProfile> BuiltInProfiles => [ToyotaTacoma2008Base2TrFe, JeepCompass2016FwdFourCylinder];
+    public static IReadOnlyList<VehicleProfile> BuiltInProfiles =>
+    [
+        ToyotaTacoma2008Base2TrFe,
+        JeepCompass2016FwdFourCylinder,
+        HyundaiElantra2014TwoLiter,
+        GenericHyundaiKiaCan,
+        GenericFordLincolnCan,
+        GenericGeneralMotorsCan,
+        GenericHondaAcuraCan,
+        GenericNissanInfinitiCan,
+        GenericToyotaLexusCan,
+        GenericChryslerJeepDodgeRamCan,
+        GenericVolkswagenAudiCan,
+        GenericBmwMiniCan,
+        GenericMercedesBenzCan,
+        GenericSubaruCan,
+        GenericMazdaCan,
+        GenericVolvoCan,
+        GenericObdCan
+    ];
 
     public static VehicleProfile ToyotaTacoma2008Base2TrFe { get; } = new()
     {
@@ -37,5 +56,47 @@ public sealed class VehicleProfile
         ManufacturerFamily = "Chrysler"
     };
 
+    public static VehicleProfile HyundaiElantra2014TwoLiter { get; } = new()
+    {
+        Name = "2014 Hyundai Elantra 2.0L",
+        Year = "2014",
+        Make = "Hyundai",
+        Model = "Elantra",
+        Engine = "Nu 2.0L GDI/MPI inline-four, market dependent",
+        ExpectedProtocol = "ISO 15765-4 CAN, usually 11-bit / 500 kbps",
+        Notes = "Hyundai/Kia enhanced module access varies by adapter and module. ELM327 can attempt read-only OBD/UDS scans; fuller module coverage normally needs a capable J2534 interface and Hyundai/Kia enhanced definitions.",
+        ManufacturerFamily = "Hyundai/Kia"
+    };
+
+    public static VehicleProfile GenericHyundaiKiaCan { get; } = Generic("Hyundai/Kia CAN vehicle", "Hyundai/Kia", "Hyundai/Kia");
+    public static VehicleProfile GenericFordLincolnCan { get; } = Generic("Ford/Lincoln CAN vehicle", "Ford/Lincoln", "Ford");
+    public static VehicleProfile GenericGeneralMotorsCan { get; } = Generic("GM/Chevrolet/GMC/Cadillac/Buick CAN vehicle", "GM", "General Motors");
+    public static VehicleProfile GenericHondaAcuraCan { get; } = Generic("Honda/Acura CAN vehicle", "Honda/Acura", "Honda");
+    public static VehicleProfile GenericNissanInfinitiCan { get; } = Generic("Nissan/Infiniti CAN vehicle", "Nissan/Infiniti", "Nissan");
+    public static VehicleProfile GenericToyotaLexusCan { get; } = Generic("Toyota/Lexus CAN vehicle", "Toyota/Lexus", "Toyota");
+    public static VehicleProfile GenericChryslerJeepDodgeRamCan { get; } = Generic("Chrysler/Jeep/Dodge/Ram CAN vehicle", "Chrysler/Jeep/Dodge/Ram", "Chrysler");
+    public static VehicleProfile GenericVolkswagenAudiCan { get; } = Generic("Volkswagen/Audi CAN vehicle", "Volkswagen/Audi", "VW/Audi");
+    public static VehicleProfile GenericBmwMiniCan { get; } = Generic("BMW/Mini CAN vehicle", "BMW/Mini", "BMW");
+    public static VehicleProfile GenericMercedesBenzCan { get; } = Generic("Mercedes-Benz CAN vehicle", "Mercedes-Benz", "Mercedes");
+    public static VehicleProfile GenericSubaruCan { get; } = Generic("Subaru CAN vehicle", "Subaru", "Subaru");
+    public static VehicleProfile GenericMazdaCan { get; } = Generic("Mazda CAN vehicle", "Mazda", "Mazda");
+    public static VehicleProfile GenericVolvoCan { get; } = Generic("Volvo CAN vehicle", "Volvo", "Volvo");
+    public static VehicleProfile GenericObdCan { get; } = Generic("Generic OBD-II CAN vehicle", "Generic", "Generic");
+
     public override string ToString() => Name;
+
+    private static VehicleProfile Generic(string name, string make, string family)
+    {
+        return new VehicleProfile
+        {
+            Name = name,
+            Year = "Generic",
+            Make = make,
+            Model = "CAN OBD-II",
+            Engine = "Unknown",
+            ExpectedProtocol = "ISO 15765-4 CAN, usually 11-bit / 500 kbps",
+            Notes = "Generic profile uses safe read-only OBD-II and UDS-style module probes. Manufacturer-specific service support depends on adapter quality and vehicle module implementation.",
+            ManufacturerFamily = family
+        };
+    }
 }

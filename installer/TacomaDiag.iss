@@ -19,6 +19,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
+SetupIconFile=..\src\TacomaDiag\Assets\AppIcon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]

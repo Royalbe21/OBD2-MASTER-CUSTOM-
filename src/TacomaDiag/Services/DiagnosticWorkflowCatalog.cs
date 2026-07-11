@@ -84,6 +84,32 @@ public static class DiagnosticWorkflowCatalog
                 Step(3, "Use Transmission Scan in Mode 6 / Modules.", "TCM candidates respond with DTC records, ECU ID, or a clear unsupported/no-response status.", "If both TCM candidates fail, use a stronger J2534 adapter or Chrysler-capable scan tool."),
                 Step(4, "Save the report before clearing or repairing anything.", "Transmission module raw responses are preserved.", "MPPS should not be used for diagnosis except as an external ECU/TCU file tool where appropriate.")
             ]
+        },
+        new()
+        {
+            Name = "Hyundai Elantra module scan",
+            Objective = "Read Hyundai/Kia engine, transmission, ABS/ESC, SRS, body, and steering candidates without writing or clearing anything.",
+            WhenToUse = "2014 Hyundai Elantra 2.0L with transmission, drivability, ABS, airbag, or body-module concerns.",
+            Steps =
+            [
+                Step(1, "Select the 2014 Hyundai Elantra 2.0L profile.", "The profile notes show Hyundai/Kia CAN expectations.", "Do not continue enhanced scanning under an unrelated profile."),
+                Step(2, "Connect with Serial/Bluetooth ELM327 or J2534 and force CAN 11/500 if auto-detect is unstable.", "ATDP reports ISO 15765-4 CAN.", "Use a J2534 interface if ELM module responses are missing or inconsistent."),
+                Step(3, "Use Transmission Scan first for transmission complaints.", "The TCM candidates return DTC records, ECU ID, or a clear unsupported/no-response status.", "If both TCM candidates fail, try Enhanced Module Scan with a stronger adapter."),
+                Step(4, "Use Enhanced Module Scan for all candidates and save the report.", "Raw responses are preserved for later review.", "Do not use clear/coding/programming operations until the fault is documented.")
+            ]
+        },
+        new()
+        {
+            Name = "Generic manufacturer module scan",
+            Objective = "Try safe read-only CAN module probing across common manufacturer families.",
+            WhenToUse = "A vehicle is not covered by a specific profile but uses CAN OBD-II.",
+            Steps =
+            [
+                Step(1, "Select the closest manufacturer profile or Generic OBD-II CAN profile.", "The selected family loads the safest known module target set.", "If unsure, start with Generic OBD-II CAN."),
+                Step(2, "Connect and confirm CAN 11/500 or the vehicle's detected CAN protocol.", "Generic OBD-II requests respond before enhanced scanning.", "Fix adapter/protocol issues before module scanning."),
+                Step(3, "Run Enhanced Module Scan read-only.", "Responding modules are captured with raw responses and decoded DTCs where possible.", "No response does not prove a module is absent; it may need manufacturer-specific addressing."),
+                Step(4, "Save the report and raw logs.", "The scan result can guide which professional/J2534 tool is needed next.", "Do not assume unsupported enhanced responses mean the vehicle has no faults.")
+            ]
         }
     ];
 

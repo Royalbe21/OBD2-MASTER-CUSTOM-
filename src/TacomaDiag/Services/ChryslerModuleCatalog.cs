@@ -18,9 +18,7 @@ public static class ChryslerModuleCatalog
 
     public static IReadOnlyList<VehicleModuleTarget> GetTargets(VehicleProfile profile)
     {
-        return profile.ManufacturerFamily.Equals("Chrysler", StringComparison.OrdinalIgnoreCase)
-            ? JeepCompass2016Targets
-            : Array.Empty<VehicleModuleTarget>();
+        return ManufacturerModuleCatalog.GetTargets(profile);
     }
 
     private static VehicleModuleTarget Target(string name, string system, string requestHeader, string responseHeader, string notes, bool isPriority)

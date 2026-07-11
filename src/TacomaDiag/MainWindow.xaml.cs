@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private VehicleProfile _profile = VehicleProfile.ToyotaTacoma2008Base2TrFe;
     private DiagnosticWorkflow? _selectedWorkflow;
     private MppsToolInfo? _selectedMppsTool;
+    private IReadOnlyList<MppsUsbDeviceInfo> _mppsUsbDevices = [];
     private bool _isRecordingLiveData;
     private DateTime? _recordingStartedAt;
     private string _lastProtocol = "";
@@ -730,7 +731,7 @@ public partial class MainWindow : Window
     {
         EnsureConnected();
 
-        var targets = ChryslerModuleCatalog.GetTargets(_profile);
+        var targets = ManufacturerModuleCatalog.GetTargets(_profile);
         if (targets.Count == 0)
         {
             MessageBox.Show(this, "Enhanced module targets are not defined for the selected vehicle profile yet.", "TacomaDiag", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -888,23 +889,28 @@ public partial class MainWindow : Window
 
     private void RefreshMppsTools()
     {
+        _mppsUsbDevices = MppsToolDiscovery.FindConnectedUsbDevices();
         MppsTools.Clear();
         foreach (var tool in MppsToolDiscovery.FindInstalledTools())
         {
             MppsTools.Add(tool);
         }
 
+        var usbStatus = _mppsUsbDevices.Count == 0
+            ? "no MPPS USB device detected"
+            : $"{_mppsUsbDevices.Count} MPPS USB device(s) detected: {string.Join("; ", _mppsUsbDevices.Select(device => device.DriverSummary))}";
+
         MppsToolComboBox.ItemsSource = MppsTools;
         if (MppsTools.Count > 0)
         {
             MppsToolComboBox.SelectedIndex = 0;
             SelectMppsTool(MppsTools[0]);
-            SetFooter($"Found {MppsTools.Count} MPPS tool candidate(s).");
+            SetFooter($"Found {MppsTools.Count} MPPS tool candidate(s); {usbStatus}.");
         }
         else
         {
             SelectMppsTool(null);
-            SetFooter("No MPPS executable found automatically. Use Browse EXE if MPPS is installed.");
+            SetFooter($"No MPPS executable found automatically; {usbStatus}. Use Browse EXE if MPPS is installed.");
         }
     }
 
@@ -1038,12 +1044,25 @@ public partial class MainWindow : Window
             }
         }
 
-        if (_selectedMppsTool is not null)
+        if (_selectedMppsTool is not null || _mppsUsbDevices.Count > 0)
         {
             ReportTextBox.AppendText(Environment.NewLine + "MPPS V16 Tool" + Environment.NewLine);
-            ReportTextBox.AppendText($"Executable: {_selectedMppsTool.ExecutablePath}{Environment.NewLine}");
-            ReportTextBox.AppendText($"Source: {_selectedMppsTool.Source}{Environment.NewLine}");
-            ReportTextBox.AppendText($"Status: {_selectedMppsTool.Status}{Environment.NewLine}");
+            if (_selectedMppsTool is not null)
+            {
+                ReportTextBox.AppendText($"Executable: {_selectedMppsTool.ExecutablePath}{Environment.NewLine}");
+                ReportTextBox.AppendText($"Source: {_selectedMppsTool.Source}{Environment.NewLine}");
+                ReportTextBox.AppendText($"Status: {_selectedMppsTool.Status}{Environment.NewLine}");
+            }
+            else
+            {
+                ReportTextBox.AppendText($"Executable: Not selected{Environment.NewLine}");
+            }
+
+            ReportTextBox.AppendText($"J2534 DLLs registered: {J2534Devices.Count}{Environment.NewLine}");
+            foreach (var device in _mppsUsbDevices)
+            {
+                ReportTextBox.AppendText($"USB device: {device.Name}; {device.DriverSummary}; {device.PnpDeviceId}{Environment.NewLine}");
+            }
         }
     }
 
@@ -1149,7 +1168,7 @@ public partial class MainWindow : Window
     {
         _selectedMppsTool = tool;
         MppsPathTextBox.Text = tool is null ? "No MPPS executable selected." : tool.ExecutablePath;
-        MppsNotesTextBox.Text = MppsToolDiscovery.BuildSafetyChecklist(tool);
+        MppsNotesTextBox.Text = MppsToolDiscovery.BuildSafetyChecklist(tool, _mppsUsbDevices, J2534Devices.Count);
     }
 
     private void LoadSelectedWorkflow()

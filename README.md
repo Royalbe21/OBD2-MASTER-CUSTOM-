@@ -2,7 +2,7 @@
 
 TacomaDiag is a Windows 11 WPF prototype for working with an ELM327 or J2534-capable OBD-II adapter on a 2008 Toyota Tacoma Base 2.7L 2TR-FE.
 
-It also includes a 2016 Jeep Compass FWD four-cylinder profile for Chrysler/FCA read-only scan work.
+It also includes profiles for a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyundai Elantra 2.0L, and broad generic CAN profiles for common manufacturer families.
 
 ## Current prototype features
 
@@ -29,9 +29,12 @@ It also includes a 2016 Jeep Compass FWD four-cylinder profile for Chrysler/FCA 
 - Generic Mode 06 monitor-test decoding with raw logs for manufacturer-specific rows
 - Live-data recording with CSV export for before/after repair comparisons
 - HTML report export with advisor findings and recent live-recording frames
-- MPPS V16 companion-tool tab for finding, selecting, launching, and documenting an installed MPPS executable
+- MPPS V16 companion-tool tab for detecting plugged-in MPPS-style USB hardware, reporting Windows driver state, finding/selecting/launching an installed MPPS executable, and documenting readiness notes
 - 2016 Jeep Compass FWD four-cylinder profile with Chrysler/FCA enhanced module-scan targets
 - Transmission-priority module scan for Jeep/Chrysler TCM candidates using read-only UDS-style requests where supported
+- 2014 Hyundai Elantra 2.0L profile with Hyundai/Kia read-only module-scan targets
+- Generic manufacturer profiles for Ford/Lincoln, GM, Honda/Acura, Nissan/Infiniti, Toyota/Lexus, Chrysler/Jeep/Dodge/Ram, VW/Audi, BMW/Mini, Mercedes-Benz, Subaru, Mazda, Volvo, Hyundai/Kia, and generic OBD-II CAN vehicles
+- Manufacturer-aware module scan catalog with transmission-priority targets where known
 - Dark workstation-style interface
 
 ## Important limits
@@ -40,9 +43,15 @@ Plain serial ELM327 adapters can perform generic OBD-II diagnostics very well, b
 
 TacomaDiag intentionally does not include ECU programming, immobilizer functions, SRS clearing, ABS bleeding, or unsafe bidirectional controls.
 
-MPPS V16 is handled as an external ECU flasher companion. TacomaDiag can scan for `mpps.exe`, launch it, and add MPPS readiness/safety notes to reports, but it does not automate MPPS ECU read/write operations. Use TacomaDiag's J2534 mode only if the MPPS package or another adapter installs a real SAE J2534 PassThru DLL.
+MPPS V16 is handled as an external ECU flasher companion. TacomaDiag can detect common MPPS USB hardware such as `USB\VID_1C43&PID_0500`, report whether Windows has a working driver loaded, scan for `mpps.exe`, launch it, and add MPPS readiness/safety notes to reports. It does not automate MPPS ECU read/write operations. Use TacomaDiag's J2534 mode only if the MPPS package or another adapter installs a real SAE J2534 PassThru DLL.
+
+Windows USB detection, MPPS software installation, and J2534 registration are separate checks. A plugged-in MPPS device with Windows Device Manager Code 28 means the hardware is present but the driver is not installed or failed to install; install the vendor-supplied Windows-compatible driver package before expecting full MPPS functionality.
+
+An experimental WinUSB driver-package scaffold for MPPS-style `USB\VID_1C43&PID_0500` hardware is included in `drivers/mpps-v16-winusb`. It can bind the device to Microsoft's inbox WinUSB driver for user-mode protocol research, but it is not a vendor-equivalent MPPS driver and needs a signed catalog before normal Windows 11 installation.
 
 For the 2016 Jeep Compass, use the ELM/J2534 diagnostic connection for scanning. MPPS V16 is not the preferred tool for module diagnostics; it is treated as a separate ECU/TCU read/write companion. Full Chrysler module functionality depends on adapter quality, module addressing, and Chrysler-enhanced service definitions. The built-in enhanced scan uses read-only requests and does not perform coding, programming, immobilizer work, or bidirectional actuator tests.
+
+For the 2014 Hyundai Elantra 2.0L, select the Hyundai profile and start with CAN 11/500. Transmission and enhanced module scans use read-only UDS-style requests where supported. Full Hyundai/Kia dealer-level coverage still depends on adapter quality, module addressing, and enhanced service definitions.
 
 Readiness cannot be forced ready by software. Clearing DTCs resets readiness monitors. The truck must run the required monitor checks during normal or drive-cycle operation.
 

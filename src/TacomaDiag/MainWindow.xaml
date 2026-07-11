@@ -4,19 +4,21 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="TacomaDiag" Height="780" Width="1160" MinHeight="650" MinWidth="980"
+        Title="OBD2 Custom Scan" Icon="Assets/AppIcon.ico"
+        Height="780" Width="1160" MinHeight="650" MinWidth="980"
+        FontFamily="Segoe UI"
         Loaded="Window_Loaded" Closing="Window_Closing">
     <Window.Resources>
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#101418"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#171D23"/>
-        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#202832"/>
-        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#2B3540"/>
-        <SolidColorBrush x:Key="BorderBrushDark" Color="#3B4652"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8EDF2"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#AAB6C2"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#2BB3A3"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#36C7B6"/>
-        <SolidColorBrush x:Key="DangerBrush" Color="#B91C1C"/>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#050A10"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#0B121B"/>
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#101C29"/>
+        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#162638"/>
+        <SolidColorBrush x:Key="BorderBrushDark" Color="#244156"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F2F7FB"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#93A8BA"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#049DFF"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#2DB7FF"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#C62839"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
@@ -24,20 +26,42 @@
 
         <Style TargetType="Button">
             <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Padding" Value="13,8"/>
             <Setter Property="MinWidth" Value="92"/>
             <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="#03111B"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
-                    <Setter Property="Foreground" Value="#06110F"/>
-                </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.55"/>
                     <Setter Property="Cursor" Value="Arrow"/>
                 </Trigger>
             </Style.Triggers>
@@ -71,12 +95,13 @@
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="Margin" Value="0,0,3,0"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
-                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -118,30 +143,44 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="0,0,0,1" Padding="16">
-            <DockPanel LastChildFill="True">
-                <StackPanel DockPanel.Dock="Left" Orientation="Vertical" Margin="0,0,24,0">
-                    <TextBlock Text="TacomaDiag" Foreground="{StaticResource TextPrimaryBrush}" FontSize="24" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="VehicleProfileComboBox" Width="260" Margin="0,5,0,4" SelectionChanged="VehicleProfileComboBox_SelectionChanged"/>
-                    <TextBlock x:Name="ProfileTextBlock" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="0,0,0,1" Padding="18,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="76" Height="76" CornerRadius="10" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1" ClipToBounds="True" Background="#02070C">
+                    <Image Source="Assets/AppLogo.png" Stretch="UniformToFill"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" Orientation="Vertical" Margin="16,0,24,0" VerticalAlignment="Center">
+                    <TextBlock Text="OBD2 Custom Scan" Foreground="{StaticResource TextPrimaryBrush}" FontSize="25" FontWeight="SemiBold"/>
+                    <TextBlock Text="Diagnostics. Data. Control." Foreground="{StaticResource AccentHoverBrush}" FontSize="12" FontWeight="SemiBold" Margin="0,2,0,9"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox x:Name="VehicleProfileComboBox" Width="280" Margin="0,0,10,0" SelectionChanged="VehicleProfileComboBox_SelectionChanged"/>
+                        <TextBlock x:Name="ProfileTextBlock" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ConnectionStatusTextBlock" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"
+                               Margin="0,8,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ComboBox x:Name="AdapterModeComboBox" Width="190" SelectionChanged="AdapterModeComboBox_SelectionChanged"/>
-                    <Button x:Name="RefreshPortsButton" Content="Refresh" Click="RefreshPortsButton_Click"/>
-                    <ComboBox x:Name="PortComboBox" Width="115"/>
-                    <ComboBox x:Name="BaudComboBox" Width="105"/>
-                    <ComboBox x:Name="ProtocolComboBox" Width="135"/>
-                    <ComboBox x:Name="J2534DllComboBox" Width="230"/>
-                    <Button x:Name="BrowseJ2534Button" Content="Browse DLL" Click="BrowseJ2534Button_Click"/>
-                    <Button x:Name="AdapterSelfTestButton" Content="Self Test" Click="AdapterSelfTestButton_Click"/>
-                    <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click"/>
-                    <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
-                </WrapPanel>
-
-                <TextBlock x:Name="ConnectionStatusTextBlock" Foreground="{StaticResource TextSecondaryBrush}" FontSize="14"
-                           VerticalAlignment="Center" TextWrapping="Wrap"/>
-            </DockPanel>
+                <Border Grid.Column="2" Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1" CornerRadius="8" Padding="12" VerticalAlignment="Center">
+                    <WrapPanel Orientation="Horizontal" MaxWidth="720">
+                        <ComboBox x:Name="AdapterModeComboBox" Width="190" SelectionChanged="AdapterModeComboBox_SelectionChanged"/>
+                        <Button x:Name="RefreshPortsButton" Content="Refresh" Click="RefreshPortsButton_Click"/>
+                        <ComboBox x:Name="PortComboBox" Width="115"/>
+                        <ComboBox x:Name="BaudComboBox" Width="105"/>
+                        <ComboBox x:Name="ProtocolComboBox" Width="135"/>
+                        <ComboBox x:Name="J2534DllComboBox" Width="230"/>
+                        <Button x:Name="BrowseJ2534Button" Content="Browse DLL" Click="BrowseJ2534Button_Click"/>
+                        <Button x:Name="AdapterSelfTestButton" Content="Self Test" Click="AdapterSelfTestButton_Click"/>
+                        <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click"/>
+                        <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
+                    </WrapPanel>
+                </Border>
+            </Grid>
         </Border>
 
         <TabControl Grid.Row="1" Margin="14">
