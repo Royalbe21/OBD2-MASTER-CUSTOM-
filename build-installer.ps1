@@ -54,5 +54,5 @@ finally {
     Pop-Location
 }
 
-$setupPath = Join-Path $InstallerOutputDir "TacomaDiagSetup.exe"
+$setupPath = Join-Path $InstallerOutputDir "OBD2MasterCustomSetup.exe"
 Write-Host "Installer created: $setupPath"

@@ -1,7 +1,7 @@
-#define MyAppName "TacomaDiag"
+#define MyAppName "OBD2 Master, Custom"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Royalbe21"
-#define MyAppExeName "TacomaDiag.exe"
+#define MyAppExeName "OBD2MasterCustom.exe"
 #define MyPublishDir "..\publish\win-x64"
 
 [Setup]
@@ -13,7 +13,7 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=output
-OutputBaseFilename=TacomaDiagSetup
+OutputBaseFilename=OBD2MasterCustomSetup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

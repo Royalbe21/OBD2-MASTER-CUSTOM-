@@ -8,6 +8,8 @@
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <AssemblyName>OBD2MasterCustom</AssemblyName>
+    <Product>OBD2 Master, Custom</Product>
   </PropertyGroup>
 
   <ItemGroup>
