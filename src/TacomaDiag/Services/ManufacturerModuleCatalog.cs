@@ -66,11 +66,15 @@ public static class ManufacturerModuleCatalog
 
     private static readonly IReadOnlyList<VehicleModuleTarget> FordTargets =
     [
-        Target("PCM", "Powertrain", "7E0", "7E8", "Ford powertrain controller candidate.", true),
-        Target("TCM", "Transmission", "7E1", "7E9", "Ford transmission controller candidate.", true),
-        Target("ABS", "Chassis", "760", "768", "Ford ABS candidate on some CAN networks; support varies.", false),
-        Target("RCM / airbag", "Safety", "737", "73F", "Ford restraint control candidate; read-only only.", false),
-        Target("BCM", "Body", "726", "72E", "Ford body-control candidate; support varies.", false)
+        Target("PCM / HS-CAN", "Powertrain", "7E0", "7E8", "Ford/Mazda powertrain controller candidate. Set adapter switch to HS-CAN.", true),
+        Target("TCM / HS-CAN", "Transmission", "7E1", "7E9", "Ford/Mazda transmission controller candidate. Set adapter switch to HS-CAN.", true),
+        Target("ABS / HS-CAN", "Chassis", "760", "768", "Ford/Mazda ABS candidate on high-speed CAN; support varies. Set adapter switch to HS-CAN.", false),
+        Target("RCM / airbag / HS-CAN", "Safety", "737", "73F", "Ford/Mazda restraint-control candidate; read-only only. Set adapter switch to HS-CAN.", false),
+        Target("BCM / MS-CAN", "Body", "726", "72E", "Ford/Mazda body-control candidate; support varies. Set adapter switch to MS-CAN.", false),
+        Target("IPC / cluster / MS-CAN", "Body", "720", "728", "Ford/Mazda instrument-cluster candidate. Set adapter switch to MS-CAN.", false),
+        Target("HVAC / climate / MS-CAN", "Body", "733", "73B", "Ford/Mazda HVAC/climate candidate. Set adapter switch to MS-CAN.", false),
+        Target("DDM / driver door / MS-CAN", "Body", "740", "748", "Ford/Mazda driver-door module candidate. Set adapter switch to MS-CAN.", false),
+        Target("APIM / infotainment / MS-CAN", "Body", "7D0", "7D8", "Ford SYNC/APIM-style candidate where equipped. Set adapter switch to MS-CAN.", false)
     ];
 
     private static readonly IReadOnlyList<VehicleModuleTarget> GeneralMotorsTargets =
@@ -110,11 +114,11 @@ public static class ManufacturerModuleCatalog
             "Chrysler" => ChryslerTargets,
             "Ram ProMaster" => RamProMasterDieselTargets,
             "Sprinter" => SprinterDieselTargets,
-            "Ford" => Merge(FordTargets, StandardCanTargets),
+            "Ford" or "Mazda" => Merge(FordTargets, StandardCanTargets),
             "General Motors" => Merge(GeneralMotorsTargets, StandardCanTargets),
             "General Motors Van" => Merge(GeneralMotorsVanTargets, StandardCanTargets),
             "VW/Audi" => Merge(VolkswagenAudiTargets, StandardCanTargets),
-            "Toyota" or "Honda" or "Nissan" or "BMW" or "Mercedes" or "Subaru" or "Mazda" or "Volvo" or "Generic" => StandardCanTargets,
+            "Toyota" or "Honda" or "Nissan" or "BMW" or "Mercedes" or "Subaru" or "Volvo" or "Generic" => StandardCanTargets,
             _ => StandardCanTargets
         };
     }

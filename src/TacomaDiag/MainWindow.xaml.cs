@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     private DiagnosticWorkflow? _selectedWorkflow;
     private MppsToolInfo? _selectedMppsTool;
     private IReadOnlyList<MppsUsbDeviceInfo> _mppsUsbDevices = [];
+    private IReadOnlyList<UsbSerialDeviceInfo> _knownSerialDevices = [];
+    private IReadOnlyList<UsbSerialDeviceInfo> _ch340Devices = [];
     private bool _isRecordingLiveData;
     private DateTime? _recordingStartedAt;
     private string _lastProtocol = "";
@@ -42,6 +44,7 @@ public partial class MainWindow : Window
     public ObservableCollection<Mode6TestResult> Mode6Rows { get; } = [];
     public ObservableCollection<MppsToolInfo> MppsTools { get; } = [];
     public ObservableCollection<ModuleScanResult> ModuleScanRows { get; } = [];
+    public ObservableCollection<AdapterWizardStep> AdapterWizardRows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -177,6 +180,7 @@ public partial class MainWindow : Window
             await ApplySelectedProtocolAsync();
             await ReadProtocolAsync();
             AppendTerminal("Connected.");
+            AppendElmUsbAdapterGuidance();
         });
     }
 
@@ -262,6 +266,38 @@ public partial class MainWindow : Window
         {
             ReportTextBox.AppendText(Environment.NewLine + "Guided Workflow" + Environment.NewLine);
             ReportTextBox.AppendText(WorkflowTextBox.Text);
+        }
+    }
+
+    private void RefreshAdapterHardwareButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshPorts();
+        RefreshAdapterWizardHardwareSummary();
+    }
+
+    private async void RunAdapterWizardButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(RunAdapterWizardAsync);
+    }
+
+    private async void RunHsMsSwitchCheckButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(RunHsMsSwitchCheckAsync);
+    }
+
+    private void SaveAdapterWizardReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save adapter wizard report",
+            Filter = "Text report (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = $"adapter-wizard-{DateTime.Now:yyyyMMdd-HHmmss}.txt"
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            File.WriteAllText(dialog.FileName, BuildAdapterWizardReport());
+            SetFooter($"Adapter wizard report saved: {dialog.FileName}");
         }
     }
 
@@ -519,17 +555,110 @@ public partial class MainWindow : Window
         }
 
         var response = await Transport.SendCommandAsync(protocol.Command, timeoutMs: 3000);
-        AppendTerminal($"> {protocol.Command}{Environment.NewLine}{response}");
+        AppendTerminal($"> {protocol.Command} ({protocol.Name}){Environment.NewLine}{response}");
+        if (!string.IsNullOrWhiteSpace(protocol.Description))
+        {
+            AppendTerminal(protocol.Description);
+        }
+        if (!string.IsNullOrWhiteSpace(protocol.SwitchPosition))
+        {
+            AppendTerminal(protocol.SwitchPosition);
+        }
     }
 
     private async Task AdapterSelfTestAsync()
     {
         EnsureConnected();
+        AppendElmUsbAdapterGuidance();
         foreach (var command in new[] { "ATI", "AT@1", "ATDP", "ATDPN", "0100" })
         {
             var response = await Transport.SendCommandAsync(command, timeoutMs: command == "0100" ? 6500 : 3000);
             AppendTerminal($"> {command}{Environment.NewLine}{response}");
         }
+    }
+
+    private async Task RunAdapterWizardAsync()
+    {
+        AdapterWizardRows.Clear();
+        AdapterWizardLogTextBox.Clear();
+        RefreshPorts();
+        AddAdapterWizardStep("Hardware refresh", "Done", BuildAdapterHardwareSummary(), "");
+
+        var connectionDetail = await EnsureWizardTransportConnectedAsync();
+        AddAdapterWizardStep("Open adapter", "Pass", connectionDetail, Transport.ConnectionName);
+
+        foreach (var command in new[] { "ATZ", "ATI", "ATE0", "ATL0", "ATS0", "ATH0" })
+        {
+            var response = await SendWizardCommandAsync(command, timeoutMs: command == "ATZ" ? 4500 : 3000);
+            AddAdapterWizardStep(
+                $"ELM {command}",
+                LooksLikePositiveAdapterResponse(response) ? "Pass" : "Review",
+                DescribeAdapterCommand(command, response),
+                response);
+        }
+
+        await ApplySelectedProtocolAsync();
+        AddAdapterWizardStep("Protocol select", "Done", GetSelectedAdapterProfile()?.Name ?? "Selected protocol applied.", "");
+
+        var protocol = await SendWizardCommandAsync("ATDP", timeoutMs: 3000);
+        _lastProtocol = protocol;
+        AddAdapterWizardStep("Protocol name", string.IsNullOrWhiteSpace(protocol) ? "Review" : "Pass", protocol, protocol);
+
+        var protocolNumber = await SendWizardCommandAsync("ATDPN", timeoutMs: 3000);
+        AddAdapterWizardStep("Protocol number", string.IsNullOrWhiteSpace(protocolNumber) ? "Review" : "Pass", protocolNumber, protocolNumber);
+
+        var vehicleConnected = WizardVehicleConnectedCheckBox.IsChecked == true;
+        var pidSupport = await SendWizardCommandAsync("0100", timeoutMs: 6500);
+        AddAdapterWizardStep(
+            "Vehicle ECU response",
+            LooksLikeObdPositiveResponse(pidSupport, "41 00") ? "Pass" : vehicleConnected ? "Fail" : "Info",
+            DescribeVehicleResponse(pidSupport, vehicleConnected),
+            pidSupport);
+
+        var vinResponse = await SendWizardCommandAsync("0902", timeoutMs: 6500);
+        _lastVin = ObdDecoder.DecodeVin(vinResponse);
+        VinTextBlock.Text = string.IsNullOrWhiteSpace(_lastVin) ? "VIN: not read" : $"VIN: {_lastVin}";
+        AddAdapterWizardStep(
+            "VIN read",
+            string.IsNullOrWhiteSpace(_lastVin) ? vehicleConnected ? "Review" : "Info" : "Pass",
+            string.IsNullOrWhiteSpace(_lastVin) ? "VIN was not decoded from this response." : _lastVin,
+            vinResponse);
+
+        AddAdapterWizardStep(
+            "Next action",
+            "Ready",
+            vehicleConnected
+                ? "If HS-CAN works, continue with Full Scan. Use HS/MS Switch Check before Ford/Mazda body-module work."
+                : "Adapter path is tested. Connect vehicle, turn ignition ON, then rerun the wizard.",
+            "");
+
+        RefreshReport();
+        SetAdapterWizardStatus("Adapter wizard complete.");
+    }
+
+    private async Task RunHsMsSwitchCheckAsync()
+    {
+        EnsureConnected();
+        AdapterWizardLogTextBox.AppendText("HS/MS switch check started." + Environment.NewLine + Environment.NewLine);
+
+        MessageBox.Show(this, "Set the adapter's physical switch to HS-CAN, then click OK. Use ignition ON if the vehicle is connected.", "HS-CAN switch check", MessageBoxButton.OK, MessageBoxImage.Information);
+        var hsProtocol = await SendWizardCommandAsync("ATSP6", timeoutMs: 3000);
+        var hsResponse = await SendWizardCommandAsync("0100", timeoutMs: 6500);
+        AddAdapterWizardStep("HS-CAN switch", LooksLikeObdPositiveResponse(hsResponse, "41 00") ? "Pass" : "Review", DescribeVehicleResponse(hsResponse, WizardVehicleConnectedCheckBox.IsChecked == true), $"ATSP6: {hsProtocol}{Environment.NewLine}0100: {hsResponse}");
+
+        MessageBox.Show(this, "Set the adapter's physical switch to MS-CAN, then click OK. MS-CAN is mainly for Ford/Mazda body, cluster, HVAC, and comfort modules.", "MS-CAN switch check", MessageBoxButton.OK, MessageBoxImage.Information);
+        var msProtocol = await SendWizardCommandAsync("ATSP8", timeoutMs: 3000);
+        var msResponse = await SendWizardCommandAsync("0100", timeoutMs: 6500);
+        AddAdapterWizardStep("MS-CAN switch", LooksLikeObdPositiveResponse(msResponse, "41 00") ? "Pass" : "Info", "MS-CAN may not answer generic OBD PID 0100 unless a compatible ECU is present on that bus.", $"ATSP8: {msProtocol}{Environment.NewLine}0100: {msResponse}");
+
+        if (GetSelectedAdapterProfile() is { } selectedProfile)
+        {
+            var restoreResponse = await SendWizardCommandAsync(selectedProfile.Command, timeoutMs: 3000);
+            AddAdapterWizardStep("Restore profile", "Done", $"Restored {selectedProfile.Name}.", restoreResponse);
+        }
+
+        RefreshReport();
+        SetAdapterWizardStatus("HS/MS switch check complete.");
     }
 
     private async Task ReadVinAsync()
@@ -864,10 +993,15 @@ public partial class MainWindow : Window
     private void RefreshPorts()
     {
         var ports = Elm327Client.GetSerialPorts();
+        _knownSerialDevices = UsbSerialDeviceDiscovery.FindKnownAdapterDevices();
+        _ch340Devices = UsbSerialDeviceDiscovery.FindCh340Devices();
         PortComboBox.ItemsSource = ports;
         if (ports.Length > 0)
         {
-            PortComboBox.SelectedIndex = 0;
+            var preferredPort = _knownSerialDevices
+                .Select(device => device.PortName)
+                .FirstOrDefault(port => !string.IsNullOrWhiteSpace(port) && ports.Contains(port, StringComparer.OrdinalIgnoreCase));
+            PortComboBox.SelectedItem = preferredPort ?? ports[0];
         }
 
         J2534Devices.Clear();
@@ -884,7 +1018,10 @@ public partial class MainWindow : Window
 
         var serialStatus = ports.Length == 0 ? "No COM ports found" : $"Found {ports.Length} COM port(s)";
         var j2534Status = J2534Devices.Count == 0 ? "no J2534 DLLs found" : $"{J2534Devices.Count} J2534 DLL(s) found";
-        SetFooter($"{serialStatus}; {j2534Status}.");
+        var adapterStatus = _knownSerialDevices.Count == 0 ? "no known USB/Bluetooth serial OBD adapter detected" : $"{_knownSerialDevices.Count} USB/Bluetooth serial adapter candidate(s) detected";
+        SetFooter($"{serialStatus}; {j2534Status}; {adapterStatus}.");
+        SetAdapterWizardStatus($"{serialStatus}; {adapterStatus}.");
+        RefreshReport();
     }
 
     private void RefreshMppsTools()
@@ -968,6 +1105,9 @@ public partial class MainWindow : Window
     {
         ConnectButton.IsEnabled = !busy;
         RefreshPortsButton.IsEnabled = !busy;
+        RefreshAdapterHardwareButton.IsEnabled = !busy;
+        RunAdapterWizardButton.IsEnabled = !busy;
+        RunHsMsSwitchCheckButton.IsEnabled = !busy;
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 
@@ -993,10 +1133,245 @@ public partial class MainWindow : Window
         TerminalTextBox.ScrollToEnd();
     }
 
+    private void AddAdapterWizardStep(string step, string status, string detail, string rawResponse)
+    {
+        var row = new AdapterWizardStep
+        {
+            Step = step,
+            Status = status,
+            Detail = string.IsNullOrWhiteSpace(detail) ? "(no detail)" : detail,
+            RawResponse = rawResponse
+        };
+
+        AdapterWizardRows.Add(row);
+        AdapterWizardLogTextBox.AppendText($"[{row.Status}] {row.Step}: {row.Detail}{Environment.NewLine}");
+        if (!string.IsNullOrWhiteSpace(row.RawResponse))
+        {
+            AdapterWizardLogTextBox.AppendText(row.RawResponse + Environment.NewLine);
+        }
+
+        AdapterWizardLogTextBox.AppendText(Environment.NewLine);
+        AdapterWizardLogTextBox.ScrollToEnd();
+    }
+
+    private void SetAdapterWizardStatus(string message)
+    {
+        if (AdapterWizardStatusTextBlock is not null)
+        {
+            AdapterWizardStatusTextBlock.Text = message;
+        }
+    }
+
+    private void AppendElmUsbAdapterGuidance()
+    {
+        if (AdapterModeComboBox.SelectedItem?.ToString() != SerialAdapterMode)
+        {
+            return;
+        }
+
+        if (_ch340Devices.Count > 0)
+        {
+            AppendTerminal("Detected CH340/CH341 USB serial adapter:" + Environment.NewLine + string.Join(Environment.NewLine, _ch340Devices.Select(device => $"- {device.Name}: {device.DriverSummary}")));
+        }
+        else
+        {
+            AppendTerminal("No CH340/CH341 USB serial adapter was detected by Windows PnP. If this is your USB ELM327 HS/MS-CAN adapter, install/repair the CH340T driver and click Refresh.");
+        }
+
+        if (GetSelectedAdapterProfile() is { } profile)
+        {
+            AppendTerminal($"Selected adapter/protocol profile: {profile.Name}{Environment.NewLine}{profile.Description}");
+            if (!string.IsNullOrWhiteSpace(profile.SwitchPosition))
+            {
+                AppendTerminal(profile.SwitchPosition);
+            }
+        }
+    }
+
     private void AppendMode6(string message)
     {
         Mode6TextBox.AppendText($"{message}{Environment.NewLine}{Environment.NewLine}");
         Mode6TextBox.ScrollToEnd();
+    }
+
+    private void RefreshAdapterWizardHardwareSummary()
+    {
+        AdapterWizardRows.Clear();
+        AdapterWizardLogTextBox.Clear();
+        AddAdapterWizardStep("Hardware refresh", "Done", BuildAdapterHardwareSummary(), "");
+        SetAdapterWizardStatus(BuildAdapterHardwareSummary());
+    }
+
+    private async Task<string> EnsureWizardTransportConnectedAsync()
+    {
+        if (Transport.IsConnected)
+        {
+            return $"Already connected through {Transport.ConnectionName}.";
+        }
+
+        DisconnectTransports();
+
+        var selectedMode = AdapterModeComboBox.SelectedItem?.ToString() ?? SerialAdapterMode;
+        if (selectedMode == DemoAdapterMode)
+        {
+            _elm.ConnectDemo();
+            _transport = _elm;
+            UpdateConnectionStatus();
+            await Task.CompletedTask;
+            return "Demo adapter opened.";
+        }
+
+        if (selectedMode == J2534AdapterMode)
+        {
+            if (J2534DllComboBox.SelectedItem is not J2534DeviceInfo j2534Device)
+            {
+                throw new InvalidOperationException("Select a J2534 DLL or use Browse DLL before running the adapter wizard.");
+            }
+
+            _j2534.Connect(j2534Device.FunctionLibrary);
+            _transport = _j2534;
+            UpdateConnectionStatus();
+            return $"J2534 DLL opened: {j2534Device.FunctionLibrary}";
+        }
+
+        var portName = PortComboBox.SelectedItem?.ToString();
+        if (string.IsNullOrWhiteSpace(portName))
+        {
+            throw new InvalidOperationException("Select a COM port before running the adapter wizard.");
+        }
+
+        var baudRate = BaudComboBox.SelectedItem is int selectedBaud ? selectedBaud : 38400;
+        _elm.ConnectSerial(portName, baudRate);
+        _transport = _elm;
+        UpdateConnectionStatus();
+        return $"Serial port opened: {portName} @ {baudRate}.";
+    }
+
+    private async Task<string> SendWizardCommandAsync(string command, int timeoutMs)
+    {
+        try
+        {
+            var response = await Transport.SendCommandAsync(command, timeoutMs);
+            AppendTerminal($"> {command}{Environment.NewLine}{response}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            var response = $"ERROR: {ex.Message}";
+            AppendTerminal($"> {command}{Environment.NewLine}{response}");
+            return response;
+        }
+    }
+
+    private string BuildAdapterHardwareSummary()
+    {
+        var ports = Elm327Client.GetSerialPorts();
+        var portSummary = ports.Length == 0 ? "No COM ports visible." : $"COM ports: {string.Join(", ", ports)}.";
+        var serialSummary = _knownSerialDevices.Count == 0
+            ? "No known USB/Bluetooth serial adapter candidate detected."
+            : "Adapter candidates: " + string.Join("; ", _knownSerialDevices.Select(device => $"{device.AdapterFamily} {device.Name} {device.DriverSummary}"));
+        var j2534Summary = J2534Devices.Count == 0
+            ? "No registered J2534 DLLs found."
+            : $"J2534 DLLs: {J2534Devices.Count}.";
+
+        return $"{portSummary} {serialSummary} {j2534Summary}";
+    }
+
+    private string BuildAdapterWizardReport()
+    {
+        using var writer = new StringWriter();
+        writer.WriteLine("OBD2 Master, Custom - Adapter Wizard Report");
+        writer.WriteLine($"Generated: {DateTime.Now:G}");
+        writer.WriteLine($"Vehicle profile: {_profile.Name}");
+        writer.WriteLine($"Connection: {Transport.ConnectionName}");
+        writer.WriteLine($"Selected adapter mode: {AdapterModeComboBox.SelectedItem}");
+        writer.WriteLine($"Selected protocol profile: {GetSelectedAdapterProfile()?.Name ?? "(none)"}");
+        writer.WriteLine($"Vehicle connected box: {WizardVehicleConnectedCheckBox.IsChecked == true}");
+        writer.WriteLine();
+        writer.WriteLine("Hardware");
+        writer.WriteLine(BuildAdapterHardwareSummary());
+        foreach (var device in _knownSerialDevices)
+        {
+            writer.WriteLine($"- {device.AdapterFamily}: {device.Name}; {device.DriverSummary}; {device.PnpDeviceId}");
+        }
+
+        writer.WriteLine();
+        writer.WriteLine("Steps");
+        foreach (var row in AdapterWizardRows)
+        {
+            writer.WriteLine($"[{row.Status}] {row.Step}: {row.Detail}");
+            if (!string.IsNullOrWhiteSpace(row.RawResponse))
+            {
+                writer.WriteLine(row.RawResponse);
+            }
+        }
+
+        writer.WriteLine();
+        writer.WriteLine("Raw Log");
+        writer.WriteLine(AdapterWizardLogTextBox.Text);
+        return writer.ToString();
+    }
+
+    private static bool LooksLikePositiveAdapterResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return false;
+        }
+
+        return !LooksLikeNoData(response) &&
+            !response.Contains("ERROR", StringComparison.OrdinalIgnoreCase) &&
+            !response.Trim().Equals("?", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LooksLikeObdPositiveResponse(string response, string expectedPrefix)
+    {
+        var compactResponse = response.Replace(" ", "", StringComparison.Ordinal)
+            .Replace("\r", "", StringComparison.Ordinal)
+            .Replace("\n", "", StringComparison.Ordinal)
+            .ToUpperInvariant();
+        var compactPrefix = expectedPrefix.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant();
+        return compactResponse.Contains(compactPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string DescribeAdapterCommand(string command, string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return $"{command} returned no text. Some clones are quiet, but this may indicate a timeout.";
+        }
+
+        if (response.Contains("ERROR", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{command} failed. Check port, baud rate, driver, and whether another app has the port open.";
+        }
+
+        return command switch
+        {
+            "ATI" => $"Adapter identity: {response}",
+            "ATZ" => $"Adapter reset response: {response}",
+            _ => response
+        };
+    }
+
+    private static string DescribeVehicleResponse(string response, bool vehicleConnected)
+    {
+        if (LooksLikeObdPositiveResponse(response, "41 00"))
+        {
+            return "Vehicle ECU answered generic OBD PID support request.";
+        }
+
+        if (!vehicleConnected)
+        {
+            return "No generic ECU response. This is expected when the vehicle is not connected or ignition is off.";
+        }
+
+        if (LooksLikeNoData(response))
+        {
+            return "No ECU response. Check ignition ON, selected COM port, baud rate, protocol, and HS/MS switch position.";
+        }
+
+        return "Unexpected response. Save the wizard report and review raw data.";
     }
 
     private void RefreshReport()
@@ -1041,6 +1416,40 @@ public partial class MainWindow : Window
             foreach (var row in ModuleScanRows)
             {
                 ReportTextBox.AppendText($"{row.Module} ({row.RequestHeader}): {row.Status}; {row.DtcSummary}; ECU ID {row.EcuId}{Environment.NewLine}");
+            }
+        }
+
+        if (_knownSerialDevices.Count > 0 || _ch340Devices.Count > 0 || GetSelectedAdapterProfile() is { AdapterFamily.Length: > 0 })
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "ELM327 USB HS/MS-CAN Adapter" + Environment.NewLine);
+            if (GetSelectedAdapterProfile() is { } selectedProfile)
+            {
+                ReportTextBox.AppendText($"Selected adapter/protocol profile: {selectedProfile.Name}{Environment.NewLine}");
+                if (!string.IsNullOrWhiteSpace(selectedProfile.SwitchPosition))
+                {
+                    ReportTextBox.AppendText($"Switch guidance: {selectedProfile.SwitchPosition}{Environment.NewLine}");
+                }
+            }
+
+            if (_knownSerialDevices.Count == 0)
+            {
+                ReportTextBox.AppendText("Known USB/Bluetooth serial adapter: not detected by Windows PnP in this session." + Environment.NewLine);
+            }
+            else
+            {
+                foreach (var device in _knownSerialDevices)
+                {
+                    ReportTextBox.AppendText($"{device.AdapterFamily}: {device.Name}; {device.DriverSummary}; {device.PnpDeviceId}{Environment.NewLine}");
+                }
+            }
+        }
+
+        if (AdapterWizardRows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Adapter Wizard" + Environment.NewLine);
+            foreach (var row in AdapterWizardRows)
+            {
+                ReportTextBox.AppendText($"{row.Step}: {row.Status}; {row.Detail}{Environment.NewLine}");
             }
         }
 
@@ -1142,11 +1551,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var canProfile = profiles.FirstOrDefault(profile => profile.Command == "ATSP6");
+        var preferredProfileName = _profile.ManufacturerFamily is "Ford" or "Mazda"
+            ? "Ford/Mazda HS-CAN switch"
+            : "";
+        var canProfile = profiles.FirstOrDefault(profile => profile.Name == preferredProfileName)
+            ?? profiles.FirstOrDefault(profile => profile.Command == "ATSP6");
         if (canProfile is not null && _profile.ExpectedProtocol.Contains("CAN", StringComparison.OrdinalIgnoreCase))
         {
             ProtocolComboBox.SelectedItem = canProfile;
         }
+    }
+
+    private AdapterProfile? GetSelectedAdapterProfile()
+    {
+        return ProtocolComboBox.SelectedItem as AdapterProfile;
     }
 
     private static bool LooksLikeNoData(string response)

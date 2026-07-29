@@ -74,6 +74,19 @@ public static class DiagnosticWorkflowCatalog
         },
         new()
         {
+            Name = "ELM327 USB HS/MS-CAN CH340 adapter setup",
+            Objective = "Use the USB ELM327 CH340 adapter safely with Ford/Mazda HS-CAN and MS-CAN switch positions.",
+            WhenToUse = "Using a USB ELM327 adapter with a physical HS-CAN/MS-CAN toggle switch and CH340T/CH341 USB serial driver.",
+            Steps =
+            [
+                Step(1, "Install or repair the CH340T/CH341 USB serial driver, then click Refresh.", "The footer or report shows a CH340/CH341 device and a COM port.", "Try another USB port/cable or reinstall the CH340 driver before connecting to a vehicle."),
+                Step(2, "For generic OBD-II or powertrain work, set the adapter switch to HS-CAN and select Ford/Mazda HS-CAN switch.", "ATDP reports ISO 15765-4 CAN and 0100 responds.", "Use Auto Detect if the exact protocol is unknown, but keep the switch on HS-CAN for powertrain."),
+                Step(3, "For Ford/Mazda body, cluster, HVAC, comfort, and some configuration-related modules, stop scanning and flip the adapter to MS-CAN.", "The workflow and module notes clearly say MS-CAN before those candidates are attempted.", "Do not switch while a scan command is actively running."),
+                Step(4, "Save a report before any configuration work in external software.", "The report captures adapter identity, COM port, switch guidance, and responding modules.", "Use external Ford/Mazda tools for configuration writes; this app stays read-only for enhanced modules.")
+            ]
+        },
+        new()
+        {
             Name = "Jeep Compass transmission module scan",
             Objective = "Read Chrysler/FCA transmission-controller DTCs and identity data without writing or clearing anything.",
             WhenToUse = "2016 Jeep Compass FWD four-cylinder with CVT/automatic concerns, limp mode, shift issues, or transmission MIL request.",

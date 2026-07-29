@@ -7,6 +7,8 @@ It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD
 ## Current prototype features
 
 - USB/Bluetooth serial ELM327 connection through Windows COM ports
+- Dedicated USB ELM327 HS/MS-CAN CH340 adapter profile with driver detection and switch-position guidance
+- Adapter Wizard tab for COM/J2534 open checks, ELM identity tests, protocol confirmation, vehicle ECU response validation, VIN attempts, HS/MS switch checks, and saved hardware reports
 - J2534 PassThru connection through installed Windows J2534 DLLs
 - Manual J2534 DLL selection when the driver is not registered
 - Demo mode for UI testing without the vehicle connected
@@ -37,7 +39,7 @@ It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD
 - Ram ProMaster 3.0L EcoDiesel van profile with FCA/Ram diesel van read-only module-scan targets
 - Chevrolet Express / GMC Savana van profile with GM van read-only module-scan targets
 - Generic manufacturer profiles for Ford/Lincoln, GM, Honda/Acura, Nissan/Infiniti, Toyota/Lexus, Chrysler/Jeep/Dodge/Ram, VW/Audi, BMW/Mini, Mercedes-Benz, Subaru, Mazda, Volvo, Hyundai/Kia, and generic OBD-II CAN vehicles
-- Manufacturer-aware module scan catalog with transmission-priority targets where known
+- Manufacturer-aware module scan catalog with transmission-priority targets where known, including Ford/Mazda HS-CAN and MS-CAN switch notes
 - Dark workstation-style interface
 
 ## Important limits
@@ -61,6 +63,8 @@ For Dodge/Freightliner Sprinter diesel vans, select the Sprinter diesel profile 
 For Ram ProMaster 3.0L EcoDiesel vans, select the ProMaster EcoDiesel profile and start with CAN 11/500. The built-in scan is read-only and can document diesel powertrain and module candidates, but it does not perform DPF regeneration, DEF/SCR resets, injector coding, adaptations, or relearns.
 
 For Chevrolet Express and GMC Savana vans, select the Express/Savana profile and use auto-detect first. Newer vans commonly use CAN, while older vans may use GM VPW/Class 2. Diesel and body/chassis modules may require GM-enhanced definitions beyond generic OBD-II.
+
+For the USB ELM327 HS/MS-CAN adapter with a CH340T/CH341 USB serial chip, install the CH340 driver before connecting to the vehicle. OBD2 Master, Custom detects common CH340/CH341 devices, auto-selects their COM port where possible, and includes Ford/Mazda HS-CAN/MS-CAN switch guidance in the raw terminal and reports. The Adapter Wizard also looks for common USB serial and Bluetooth serial adapter families such as FTDI, CP210x, Prolific, WCH CH9102, and Bluetooth COM devices. Set the physical switch to HS-CAN for normal OBD-II and most powertrain scans; set it to MS-CAN only when the workflow or module notes ask for body/cluster/HVAC/comfort modules.
 
 Readiness cannot be forced ready by software. Clearing DTCs resets readiness monitors. The truck must run the required monitor checks during normal or drive-cycle operation.
 
@@ -99,9 +103,11 @@ dotnet run --project .\src\TacomaDiag\TacomaDiag.csproj
 4. Open OBD2 Master, Custom.
 5. For older adapters, choose `Serial ELM327`, select the COM port, and try 38400 baud first, then 9600 or 115200 if needed.
 6. For J2534-capable adapters, choose `J2534 PassThru` and select the installed DLL. If it is not listed, use `Browse DLL`.
-7. Click Connect.
-8. Confirm the raw terminal shows `ATDP` as ISO 15765-4 CAN or J2534 ISO 15765-4 CAN.
-9. Click Check Readiness or Full Scan.
+7. Open the `Adapter Wizard` tab and click `Refresh Hardware`.
+8. Check `Vehicle connected / ignition ON`, then click `Run Adapter Wizard`.
+9. Confirm the wizard shows adapter identity, protocol, and a vehicle ECU response.
+10. For Ford/Mazda HS/MS-CAN adapters, click `HS/MS Switch Check` before body, cluster, HVAC, or comfort-module scans.
+11. Click Check Readiness or Full Scan.
 
 ## J2534 notes
 
