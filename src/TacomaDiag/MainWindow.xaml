@@ -271,6 +271,37 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Vehicle Discovery">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <WrapPanel Orientation="Horizontal">
+                        <Button x:Name="RunVehicleDiscoveryButton" Content="Discover Vehicle" Click="RunVehicleDiscoveryButton_Click"/>
+                        <Button x:Name="SaveVehicleBaselineButton" Content="Save Baseline" Click="SaveVehicleBaselineButton_Click"/>
+                        <Button Content="Copy To Report" Click="CopyVehicleDiscoveryToReportButton_Click"/>
+                        <Button Content="Clear Discovery" Click="ClearVehicleDiscoveryButton_Click"/>
+                        <TextBlock x:Name="VehicleDiscoveryStatusTextBlock" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </WrapPanel>
+
+                    <DataGrid x:Name="VehicleDiscoveryDataGrid" Grid.Row="1" ItemsSource="{Binding VehicleDiscoveryRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Area" Binding="{Binding Area}" Width="170"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
+                            <DataGridTextColumn Header="Detail" Binding="{Binding Detail}" Width="*"/>
+                            <DataGridTextColumn Header="Raw" Binding="{Binding RawResponse}" Width="260"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="VehicleDiscoveryLogTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="Advisor">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -404,12 +435,17 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel Orientation="Horizontal">
                         <Button Content="Read Mode 6" Click="Mode6Button_Click"/>
                         <Button Content="Probe Modules" Click="ProbeModulesButton_Click"/>
                         <Button Content="Enhanced Module Scan" Click="EnhancedModuleScanButton_Click"/>
                         <Button Content="Transmission Scan" Click="TransmissionModuleScanButton_Click"/>
-                    </StackPanel>
+                        <Button Content="Toyota Data" Click="ToyotaEnhancedDataButton_Click"/>
+                        <Button Content="Chrysler TCM" Click="ChryslerTransmissionScanButton_Click"/>
+                        <Button Content="Hyundai/Kia" Click="HyundaiKiaModuleScanButton_Click"/>
+                        <Button Content="Ford/Mazda HS" Click="FordMazdaHsCanScanButton_Click"/>
+                        <Button Content="Ford/Mazda MS" Click="FordMazdaMsCanScanButton_Click"/>
+                    </WrapPanel>
 
                     <TabControl Grid.Row="1" Margin="0,10,0,0">
                         <TabItem Header="Mode 6">
@@ -429,6 +465,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Module" Binding="{Binding Module}" Width="170"/>
                                     <DataGridTextColumn Header="System" Binding="{Binding System}" Width="110"/>
+                                    <DataGridTextColumn Header="Bus" Binding="{Binding Bus}" Width="90"/>
                                     <DataGridTextColumn Header="Header" Binding="{Binding RequestHeader}" Width="80"/>
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130"/>
                                     <DataGridTextColumn Header="DTCs" Binding="{Binding DtcSummary}" Width="*"/>

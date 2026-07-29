@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Windows;
 using Microsoft.Win32;
 using TacomaDiag.Models;
@@ -33,6 +34,7 @@ public partial class MainWindow : Window
     private DateTime? _recordingStartedAt;
     private string _lastProtocol = "";
     private string _lastVin = "";
+    private string _lastVehicleDiscoveryReport = "";
 
     public ObservableCollection<DiagnosticTroubleCode> DtcRows { get; } = [];
     public ObservableCollection<MonitorStatus> MonitorRows { get; } = [];
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
     public ObservableCollection<MppsToolInfo> MppsTools { get; } = [];
     public ObservableCollection<ModuleScanResult> ModuleScanRows { get; } = [];
     public ObservableCollection<AdapterWizardStep> AdapterWizardRows { get; } = [];
+    public ObservableCollection<VehicleDiscoveryStep> VehicleDiscoveryRows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -301,6 +304,35 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void RunVehicleDiscoveryButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(RunVehicleDiscoveryAsync);
+    }
+
+    private void SaveVehicleBaselineButton_Click(object sender, RoutedEventArgs e)
+    {
+        SaveVehicleDiscoveryBaseline();
+    }
+
+    private void CopyVehicleDiscoveryToReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshReport();
+        if (!string.IsNullOrWhiteSpace(_lastVehicleDiscoveryReport))
+        {
+            ReportTextBox.AppendText(Environment.NewLine + _lastVehicleDiscoveryReport);
+            SetFooter("Vehicle discovery copied to report.");
+        }
+    }
+
+    private void ClearVehicleDiscoveryButton_Click(object sender, RoutedEventArgs e)
+    {
+        VehicleDiscoveryRows.Clear();
+        VehicleDiscoveryLogTextBox.Clear();
+        _lastVehicleDiscoveryReport = "";
+        VehicleDiscoveryStatusTextBlock.Text = "Vehicle discovery cleared.";
+        RefreshReport();
+    }
+
     private async void ClearCodesButton_Click(object sender, RoutedEventArgs e)
     {
         var answer = MessageBox.Show(
@@ -420,6 +452,31 @@ public partial class MainWindow : Window
     private async void TransmissionModuleScanButton_Click(object sender, RoutedEventArgs e)
     {
         await RunUiTaskAsync(() => EnhancedModuleScanAsync(transmissionOnly: true));
+    }
+
+    private async void ToyotaEnhancedDataButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanToyotaEnhanced, "Toyota enhanced data"));
+    }
+
+    private async void ChryslerTransmissionScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanChryslerTransmission, "Chrysler transmission"));
+    }
+
+    private async void HyundaiKiaModuleScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanHyundaiKiaModules, "Hyundai/Kia module"));
+    }
+
+    private async void FordMazdaHsCanScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanFordMazdaHsCan, "Ford/Mazda HS-CAN"));
+    }
+
+    private async void FordMazdaMsCanScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanFordMazdaMsCan, "Ford/Mazda MS-CAN"));
     }
 
     private void ScanMppsButton_Click(object sender, RoutedEventArgs e)
@@ -659,6 +716,39 @@ public partial class MainWindow : Window
 
         RefreshReport();
         SetAdapterWizardStatus("HS/MS switch check complete.");
+    }
+
+    private async Task RunVehicleDiscoveryAsync()
+    {
+        EnsureConnected();
+        VehicleDiscoveryRows.Clear();
+        VehicleDiscoveryLogTextBox.Clear();
+        _lastVehicleDiscoveryReport = "";
+        SetVehicleDiscoveryStatus("Vehicle discovery running.");
+
+        AddVehicleDiscoveryStep("Adapter capability", "Info", BuildAdapterCapabilitySummary(), "");
+
+        var protocol = await SendVehicleDiscoveryCommandAsync("ATDP", timeoutMs: 3000);
+        _lastProtocol = protocol;
+        AddVehicleDiscoveryStep("OBD protocol", string.IsNullOrWhiteSpace(protocol) ? "Review" : "Confirmed", string.IsNullOrWhiteSpace(protocol) ? "Protocol was not reported." : protocol, protocol);
+
+        var protocolNumber = await SendVehicleDiscoveryCommandAsync("ATDPN", timeoutMs: 3000);
+        AddVehicleDiscoveryStep("Protocol number", string.IsNullOrWhiteSpace(protocolNumber) ? "Review" : "Confirmed", string.IsNullOrWhiteSpace(protocolNumber) ? "Protocol number was not reported." : protocolNumber, protocolNumber);
+
+        var vinResponse = await SendVehicleDiscoveryCommandAsync("0902", timeoutMs: 6500);
+        _lastVin = ObdDecoder.DecodeVin(vinResponse);
+        VinTextBlock.Text = string.IsNullOrWhiteSpace(_lastVin) ? "VIN: not read" : $"VIN: {_lastVin}";
+        AddVehicleDiscoveryStep("VIN", string.IsNullOrWhiteSpace(_lastVin) ? "Review" : "Confirmed", string.IsNullOrWhiteSpace(_lastVin) ? "VIN was not decoded. Some vehicles/adapters do not return VIN through generic OBD." : _lastVin, vinResponse);
+
+        await DiscoverSupportedPidsAsync();
+        await DiscoverCodesAsync();
+        await DiscoverReadinessAsync();
+        await DiscoverModuleMapAsync();
+
+        _lastVehicleDiscoveryReport = BuildVehicleDiscoveryReport();
+        RefreshAdvisor();
+        RefreshReport();
+        SetVehicleDiscoveryStatus("Vehicle discovery complete.");
     }
 
     private async Task ReadVinAsync()
@@ -906,6 +996,47 @@ public partial class MainWindow : Window
         RefreshReport();
     }
 
+    private async Task ManufacturerSpecificScanAsync(string scanKind, string scanLabel)
+    {
+        EnsureConnected();
+
+        var targets = ManufacturerModuleCatalog.GetTargetsForScan(_profile, scanKind);
+        if (targets.Count == 0)
+        {
+            MessageBox.Show(this, $"No {scanLabel} targets are defined yet.", "TacomaDiag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        ModuleScanRows.Clear();
+        AppendMode6($"Read-only {scanLabel} scan started for {_profile.Name}.");
+        AppendMode6(BuildManufacturerScanGuidance(scanKind, targets));
+
+        try
+        {
+            await ApplyManufacturerScanProtocolAsync(scanKind);
+            foreach (var command in new[] { "ATH1", "ATS1", "ATCAF1", "ATAT2", "ATSTFF" })
+            {
+                var response = await Transport.SendCommandAsync(command, timeoutMs: 3000);
+                AppendMode6($"> {command}{Environment.NewLine}{response}");
+            }
+
+            foreach (var target in targets)
+            {
+                var scan = await ScanModuleTargetAsync(target);
+                ModuleScanRows.Add(scan);
+            }
+        }
+        finally
+        {
+            await Transport.SendCommandAsync("ATSH7DF", timeoutMs: 3000);
+            await Transport.SendCommandAsync("ATH0", timeoutMs: 3000);
+            await Transport.SendCommandAsync("ATS0", timeoutMs: 3000);
+            AppendMode6($"{scanLabel} scan finished. Header display restored off.");
+        }
+
+        RefreshReport();
+    }
+
     private async Task<ModuleScanResult> ScanModuleTargetAsync(VehicleModuleTarget target)
     {
         var headerResponse = await Transport.SendCommandAsync($"ATSH{target.RequestHeader}", timeoutMs: 3000);
@@ -927,6 +1058,32 @@ public partial class MainWindow : Window
             idResponse += Environment.NewLine + partResponse;
         }
 
+        var enhancedData = new List<string>();
+        var enhancedRaw = new StringBuilder();
+        foreach (var dataIdentifier in target.DataIdentifiers.Where(identifier => !identifier.Equals("F190", StringComparison.OrdinalIgnoreCase) && !identifier.Equals("F187", StringComparison.OrdinalIgnoreCase)))
+        {
+            var normalizedDid = NormalizeHexCommand(dataIdentifier);
+            if (normalizedDid.Length != 4)
+            {
+                continue;
+            }
+
+            var dataResponse = await Transport.SendCommandAsync($"22{normalizedDid}", timeoutMs: 5000);
+            AppendMode6($"> {target.RequestHeader} 22{normalizedDid}{Environment.NewLine}{dataResponse}");
+            enhancedRaw.AppendLine($"> 22{normalizedDid}");
+            enhancedRaw.AppendLine(dataResponse);
+
+            var decoded = DecodeDataIdentifierAscii(dataResponse, normalizedDid);
+            if (!string.IsNullOrWhiteSpace(decoded))
+            {
+                enhancedData.Add($"{normalizedDid}: {decoded}");
+            }
+            else if (!LooksLikeNoData(dataResponse))
+            {
+                enhancedData.Add($"{normalizedDid}: response captured");
+            }
+        }
+
         var status = dtcs.Count > 0 || !LooksLikeNoData(dtcResponse) || !string.IsNullOrWhiteSpace(ecuId)
             ? "Responded"
             : "No response";
@@ -935,15 +1092,22 @@ public partial class MainWindow : Window
             ? LooksLikeNoData(dtcResponse) ? "No response / unsupported" : "No DTC records decoded"
             : string.Join("; ", dtcs.Select(dtc => $"{dtc.Code} status {dtc.Status}"));
 
+        if (enhancedData.Count > 0)
+        {
+            dtcSummary += $"; data {string.Join(", ", enhancedData)}";
+            status = "Responded";
+        }
+
         return new ModuleScanResult
         {
             Module = target.Name,
             System = target.System,
             RequestHeader = target.RequestHeader,
+            Bus = target.Bus,
             Status = status,
             DtcSummary = dtcSummary,
             EcuId = ecuId,
-            RawResponse = dtcResponse + Environment.NewLine + idResponse
+            RawResponse = dtcResponse + Environment.NewLine + idResponse + Environment.NewLine + enhancedRaw
         };
     }
 
@@ -1108,6 +1272,8 @@ public partial class MainWindow : Window
         RefreshAdapterHardwareButton.IsEnabled = !busy;
         RunAdapterWizardButton.IsEnabled = !busy;
         RunHsMsSwitchCheckButton.IsEnabled = !busy;
+        RunVehicleDiscoveryButton.IsEnabled = !busy;
+        SaveVehicleBaselineButton.IsEnabled = !busy;
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 
@@ -1192,6 +1358,387 @@ public partial class MainWindow : Window
     {
         Mode6TextBox.AppendText($"{message}{Environment.NewLine}{Environment.NewLine}");
         Mode6TextBox.ScrollToEnd();
+    }
+
+    private void AddVehicleDiscoveryStep(string area, string status, string detail, string rawResponse)
+    {
+        var row = new VehicleDiscoveryStep
+        {
+            Area = area,
+            Status = status,
+            Detail = string.IsNullOrWhiteSpace(detail) ? "(no detail)" : detail,
+            RawResponse = rawResponse
+        };
+
+        VehicleDiscoveryRows.Add(row);
+        VehicleDiscoveryLogTextBox.AppendText($"[{row.Status}] {row.Area}: {row.Detail}{Environment.NewLine}");
+        if (!string.IsNullOrWhiteSpace(row.RawResponse))
+        {
+            VehicleDiscoveryLogTextBox.AppendText(row.RawResponse + Environment.NewLine);
+        }
+
+        VehicleDiscoveryLogTextBox.AppendText(Environment.NewLine);
+        VehicleDiscoveryLogTextBox.ScrollToEnd();
+    }
+
+    private void SetVehicleDiscoveryStatus(string message)
+    {
+        if (VehicleDiscoveryStatusTextBlock is not null)
+        {
+            VehicleDiscoveryStatusTextBlock.Text = message;
+        }
+    }
+
+    private async Task<string> SendVehicleDiscoveryCommandAsync(string command, int timeoutMs)
+    {
+        try
+        {
+            var response = await Transport.SendCommandAsync(command, timeoutMs);
+            AppendTerminal($"> {command}{Environment.NewLine}{response}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            var response = $"ERROR: {ex.Message}";
+            AppendTerminal($"> {command}{Environment.NewLine}{response}");
+            return response;
+        }
+    }
+
+    private async Task DiscoverSupportedPidsAsync()
+    {
+        _supportedPids.Clear();
+        var raw = new StringBuilder();
+
+        foreach (var command in new[] { "0100", "0120", "0140" })
+        {
+            var response = await SendVehicleDiscoveryCommandAsync(command, timeoutMs: 5000);
+            raw.AppendLine($"> {command}");
+            raw.AppendLine(response);
+
+            var basePid = Convert.ToInt32(command[2..], 16);
+            foreach (var supportedPid in ObdDecoder.DecodeSupportedPids(response, basePid))
+            {
+                _supportedPids.Add(supportedPid);
+            }
+        }
+
+        SeedLivePidGrid();
+        AddVehicleDiscoveryStep(
+            "Supported PIDs",
+            _supportedPids.Count == 0 ? "Review" : "Confirmed",
+            _supportedPids.Count == 0 ? "No supported generic OBD PIDs decoded." : $"{_supportedPids.Count} generic OBD PID(s) decoded.",
+            raw.ToString());
+    }
+
+    private async Task DiscoverCodesAsync()
+    {
+        DtcRows.Clear();
+        var totalCodes = 0;
+
+        foreach (var (type, command) in new[] { ("Stored", "03"), ("Pending", "07"), ("Permanent", "0A") })
+        {
+            var response = await SendVehicleDiscoveryCommandAsync(command, timeoutMs: 6000);
+            AppendCodesLog(command, response);
+            var codes = ObdDecoder.DecodeDtcResponse(response, type);
+            totalCodes += codes.Count;
+
+            foreach (var code in codes)
+            {
+                DtcRows.Add(code);
+            }
+
+            if (codes.Count == 0)
+            {
+                DtcRows.Add(new DiagnosticTroubleCode
+                {
+                    Type = type,
+                    Code = "None",
+                    Description = "No codes reported",
+                    RawResponse = response
+                });
+            }
+
+            AddVehicleDiscoveryStep(
+                $"{type} DTCs",
+                codes.Count == 0 ? "Clear" : "Found",
+                codes.Count == 0 ? "No codes decoded." : string.Join(", ", codes.Select(code => code.Code)),
+                response);
+        }
+
+        AddVehicleDiscoveryStep("DTC summary", totalCodes == 0 ? "Clear" : "Found", $"{totalCodes} code(s) decoded across stored, pending, and permanent requests.", "");
+    }
+
+    private async Task DiscoverReadinessAsync()
+    {
+        var response = await SendVehicleDiscoveryCommandAsync("0101", timeoutMs: 5000);
+        _lastReadiness = ObdDecoder.DecodeReadiness(response);
+
+        MonitorRows.Clear();
+        foreach (var monitor in _lastReadiness.Monitors)
+        {
+            MonitorRows.Add(monitor);
+        }
+
+        MilTextBlock.Text = $"MIL: {(_lastReadiness.MilOn ? "On" : "Off")}";
+        DtcCountTextBlock.Text = $"DTC count: {_lastReadiness.ConfirmedDtcCount}";
+        EngineTypeTextBlock.Text = _lastReadiness.EngineType;
+
+        var notReady = _lastReadiness.Monitors.Count(monitor => monitor.Status == "Not ready");
+        AddVehicleDiscoveryStep(
+            "Readiness",
+            notReady == 0 ? "Ready" : "Not ready",
+            $"MIL {(_lastReadiness.MilOn ? "on" : "off")}; {_lastReadiness.ConfirmedDtcCount} confirmed DTC(s); {notReady} monitor(s) not ready.",
+            response);
+    }
+
+    private async Task DiscoverModuleMapAsync()
+    {
+        ModuleScanRows.Clear();
+        var targets = ManufacturerModuleCatalog.GetTargets(_profile);
+        AddVehicleDiscoveryStep("Module catalog", "Info", $"{targets.Count} read-only module candidate(s) loaded for {_profile.Name}.", "");
+
+        try
+        {
+            foreach (var command in new[] { "ATH1", "ATS1", "ATCAF1", "ATAT1", "ATST96" })
+            {
+                var response = await SendVehicleDiscoveryCommandAsync(command, timeoutMs: 3000);
+                AddVehicleDiscoveryStep($"Module setup {command}", LooksLikePositiveAdapterResponse(response) ? "Done" : "Review", response, response);
+            }
+
+            foreach (var target in targets)
+            {
+                var scan = await ProbeDiscoveryModuleTargetAsync(target);
+                ModuleScanRows.Add(scan);
+                AddVehicleDiscoveryStep(
+                    $"Module {target.Name}",
+                    ClassifyModuleMapStatus(target, scan),
+                    BuildModuleMapDetail(target, scan),
+                    scan.RawResponse);
+            }
+        }
+        finally
+        {
+            await SendVehicleDiscoveryCommandAsync("ATSH7DF", timeoutMs: 3000);
+            await SendVehicleDiscoveryCommandAsync("ATH0", timeoutMs: 3000);
+            await SendVehicleDiscoveryCommandAsync("ATS0", timeoutMs: 3000);
+        }
+    }
+
+    private async Task<ModuleScanResult> ProbeDiscoveryModuleTargetAsync(VehicleModuleTarget target)
+    {
+        var raw = new StringBuilder();
+        var headerResponse = await SendVehicleDiscoveryCommandAsync($"ATSH{target.RequestHeader}", timeoutMs: 2500);
+        raw.AppendLine($"> ATSH{target.RequestHeader}");
+        raw.AppendLine(headerResponse);
+
+        var supportResponse = await SendVehicleDiscoveryCommandAsync("0100", timeoutMs: 3000);
+        raw.AppendLine("> 0100");
+        raw.AppendLine(supportResponse);
+
+        var idResponse = await SendVehicleDiscoveryCommandAsync("22F190", timeoutMs: 3500);
+        raw.AppendLine("> 22F190");
+        raw.AppendLine(idResponse);
+        var ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(idResponse, 0x62, 0xF1, 0x90);
+
+        if (string.IsNullOrWhiteSpace(ecuId))
+        {
+            var partResponse = await SendVehicleDiscoveryCommandAsync("22F187", timeoutMs: 3000);
+            raw.AppendLine("> 22F187");
+            raw.AppendLine(partResponse);
+            ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(partResponse, 0x62, 0xF1, 0x87);
+        }
+
+        var responded = LooksLikeObdPositiveResponse(supportResponse, "41 00") ||
+            !string.IsNullOrWhiteSpace(ecuId) ||
+            (!LooksLikeNoData(supportResponse) && !supportResponse.Trim().Equals("?", StringComparison.OrdinalIgnoreCase));
+
+        return new ModuleScanResult
+        {
+            Module = target.Name,
+            System = target.System,
+            RequestHeader = target.RequestHeader,
+            Bus = target.Bus,
+            Status = responded ? "Responded" : "No response",
+            DtcSummary = "Not read during discovery baseline",
+            EcuId = ecuId,
+            RawResponse = raw.ToString()
+        };
+    }
+
+    private string ClassifyModuleMapStatus(VehicleModuleTarget target, ModuleScanResult scan)
+    {
+        if (scan.Status.Equals("Responded", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Confirmed";
+        }
+
+        var selectedProfile = GetSelectedAdapterProfile();
+        var notesNeedMsCan = target.Notes.Contains("MS-CAN", StringComparison.OrdinalIgnoreCase);
+        var selectedMsCan = selectedProfile?.Name.Contains("MS-CAN", StringComparison.OrdinalIgnoreCase) == true;
+        if (notesNeedMsCan && !selectedMsCan)
+        {
+            return "Requires MS-CAN";
+        }
+
+        if (!target.IsPriority && AdapterModeComboBox.SelectedItem?.ToString() == SerialAdapterMode)
+        {
+            return "Requires enhanced adapter";
+        }
+
+        return target.IsPriority ? "Possible" : "No response";
+    }
+
+    private static string BuildModuleMapDetail(VehicleModuleTarget target, ModuleScanResult scan)
+    {
+        if (scan.Status.Equals("Responded", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = string.IsNullOrWhiteSpace(scan.EcuId) ? "ECU ID not decoded" : $"ECU ID {scan.EcuId}";
+            return $"{target.System}; header {target.RequestHeader}; {id}. {target.Notes}";
+        }
+
+        return $"{target.System}; header {target.RequestHeader}; {target.Notes}";
+    }
+
+    private string BuildAdapterCapabilitySummary()
+    {
+        var mode = AdapterModeComboBox.SelectedItem?.ToString() ?? SerialAdapterMode;
+        var profile = GetSelectedAdapterProfile();
+        var capabilities = new List<string>
+        {
+            $"Mode {mode}",
+            $"Connection {Transport.ConnectionName}"
+        };
+
+        if (mode == J2534AdapterMode)
+        {
+            capabilities.Add("J2534 CAN OBD-II capable when the selected DLL is valid");
+        }
+        else if (mode == DemoAdapterMode)
+        {
+            capabilities.Add("Demo data only");
+        }
+        else
+        {
+            capabilities.Add("Generic OBD-II serial commands");
+            if (profile?.Name.Contains("HS-CAN", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                capabilities.Add("HS-CAN selected");
+            }
+
+            if (profile?.Name.Contains("MS-CAN", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                capabilities.Add("MS-CAN selected");
+            }
+
+            if (_knownSerialDevices.Count > 0)
+            {
+                capabilities.Add("Detected " + string.Join("; ", _knownSerialDevices.Select(device => $"{device.AdapterFamily} {device.PortName}".Trim())));
+            }
+        }
+
+        if (profile is not null)
+        {
+            capabilities.Add($"Profile {profile.Name}");
+        }
+
+        return string.Join("; ", capabilities);
+    }
+
+    private string BuildVehicleDiscoveryReport()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Vehicle Discovery Baseline");
+        builder.AppendLine($"Generated: {DateTime.Now:G}");
+        builder.AppendLine($"Vehicle profile: {_profile.Name}");
+        builder.AppendLine($"VIN: {(string.IsNullOrWhiteSpace(_lastVin) ? "not decoded" : _lastVin)}");
+        builder.AppendLine($"Protocol: {(string.IsNullOrWhiteSpace(_lastProtocol) ? "not detected" : _lastProtocol)}");
+        builder.AppendLine($"Connection: {Transport.ConnectionName}");
+        builder.AppendLine($"Adapter capability: {BuildAdapterCapabilitySummary()}");
+        builder.AppendLine();
+
+        builder.AppendLine("Discovery Steps");
+        foreach (var row in VehicleDiscoveryRows)
+        {
+            builder.AppendLine($"{row.Area}: {row.Status}; {row.Detail}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Module Map");
+        foreach (var row in ModuleScanRows)
+        {
+            builder.AppendLine($"{row.Module} ({row.Bus} {row.RequestHeader}): {row.Status}; {row.EcuId}; {row.DtcSummary}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Readiness");
+        if (_lastReadiness is null)
+        {
+            builder.AppendLine("Readiness was not decoded.");
+        }
+        else
+        {
+            foreach (var monitor in _lastReadiness.Monitors)
+            {
+                builder.AppendLine($"{monitor.Name}: {monitor.Status}");
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private void SaveVehicleDiscoveryBaseline()
+    {
+        if (string.IsNullOrWhiteSpace(_lastVehicleDiscoveryReport))
+        {
+            _lastVehicleDiscoveryReport = BuildVehicleDiscoveryReport();
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save vehicle discovery baseline",
+            Filter = "Text report (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = $"vehicle-baseline-{DateTime.Now:yyyyMMdd-HHmmss}.txt"
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            File.WriteAllText(dialog.FileName, _lastVehicleDiscoveryReport);
+            SaveVehicleDiscoverySessionEvent();
+            SetFooter($"Vehicle baseline saved: {dialog.FileName}");
+        }
+    }
+
+    private void SaveVehicleDiscoverySessionEvent()
+    {
+        var stored = DtcRows.Count(row => row.Type == "Stored" && row.Code != "None");
+        var pending = DtcRows.Count(row => row.Type == "Pending" && row.Code != "None");
+        var permanent = DtcRows.Count(row => row.Type == "Permanent" && row.Code != "None");
+        var notReady = _lastReadiness?.Monitors.Count(monitor => monitor.Status == "Not ready") ?? 0;
+        var confirmedModules = ModuleScanRows.Count(row => row.Status.Equals("Responded", StringComparison.OrdinalIgnoreCase));
+
+        var session = new DiagnosticSession
+        {
+            VehicleName = _profile.Name,
+            Vin = _lastVin,
+            Connection = Transport.ConnectionName,
+            Protocol = _lastProtocol,
+            StoredCodeCount = stored,
+            PendingCodeCount = pending,
+            PermanentCodeCount = permanent,
+            NotReadyMonitorCount = notReady,
+            HealthSummary = $"Vehicle baseline: {confirmedModules} confirmed module(s)"
+        };
+
+        session.Events.Add(new DiagnosticEvent
+        {
+            Category = "Vehicle Discovery",
+            Summary = "Created vehicle discovery baseline",
+            Details = _lastVehicleDiscoveryReport
+        });
+
+        _historyStore.UpsertSession(session);
+        RefreshHistory();
     }
 
     private void RefreshAdapterWizardHardwareSummary()
@@ -1415,7 +1962,7 @@ public partial class MainWindow : Window
             ReportTextBox.AppendText(Environment.NewLine + "Enhanced Module Scan" + Environment.NewLine);
             foreach (var row in ModuleScanRows)
             {
-                ReportTextBox.AppendText($"{row.Module} ({row.RequestHeader}): {row.Status}; {row.DtcSummary}; ECU ID {row.EcuId}{Environment.NewLine}");
+                ReportTextBox.AppendText($"{row.Module} ({row.Bus} {row.RequestHeader}): {row.Status}; {row.DtcSummary}; ECU ID {row.EcuId}{Environment.NewLine}");
             }
         }
 
@@ -1450,6 +1997,15 @@ public partial class MainWindow : Window
             foreach (var row in AdapterWizardRows)
             {
                 ReportTextBox.AppendText($"{row.Step}: {row.Status}; {row.Detail}{Environment.NewLine}");
+            }
+        }
+
+        if (VehicleDiscoveryRows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Vehicle Discovery" + Environment.NewLine);
+            foreach (var row in VehicleDiscoveryRows)
+            {
+                ReportTextBox.AppendText($"{row.Area}: {row.Status}; {row.Detail}{Environment.NewLine}");
             }
         }
 
@@ -1523,6 +2079,16 @@ public partial class MainWindow : Window
             Details = ReportTextBox.Text
         });
 
+        if (!string.IsNullOrWhiteSpace(_lastVehicleDiscoveryReport))
+        {
+            session.Events.Add(new DiagnosticEvent
+            {
+                Category = "Vehicle Discovery",
+                Summary = "Saved vehicle discovery baseline",
+                Details = _lastVehicleDiscoveryReport
+            });
+        }
+
         _historyStore.UpsertSession(session);
         RefreshHistory();
         SetFooter($"Session saved to {_historyStore.HistoryPath}");
@@ -1565,6 +2131,76 @@ public partial class MainWindow : Window
     private AdapterProfile? GetSelectedAdapterProfile()
     {
         return ProtocolComboBox.SelectedItem as AdapterProfile;
+    }
+
+    private async Task ApplyManufacturerScanProtocolAsync(string scanKind)
+    {
+        var desiredProfileName = scanKind switch
+        {
+            ManufacturerModuleCatalog.ScanFordMazdaHsCan => "Ford/Mazda HS-CAN switch",
+            ManufacturerModuleCatalog.ScanFordMazdaMsCan => "Ford/Mazda MS-CAN switch",
+            _ => ""
+        };
+
+        if (!string.IsNullOrWhiteSpace(desiredProfileName) &&
+            ProtocolComboBox.ItemsSource is IEnumerable<AdapterProfile> profiles &&
+            profiles.FirstOrDefault(profile => profile.Name.Equals(desiredProfileName, StringComparison.OrdinalIgnoreCase)) is { } desiredProfile)
+        {
+            ProtocolComboBox.SelectedItem = desiredProfile;
+            AppendMode6($"Selected adapter profile: {desiredProfile.Name}. {desiredProfile.SwitchPosition}");
+            var response = await Transport.SendCommandAsync(desiredProfile.Command, timeoutMs: 3000);
+            AppendMode6($"> {desiredProfile.Command}{Environment.NewLine}{response}");
+            return;
+        }
+
+        if (scanKind is ManufacturerModuleCatalog.ScanToyotaEnhanced or ManufacturerModuleCatalog.ScanChryslerTransmission or ManufacturerModuleCatalog.ScanHyundaiKiaModules)
+        {
+            var response = await Transport.SendCommandAsync("ATSP6", timeoutMs: 3000);
+            AppendMode6($"> ATSP6{Environment.NewLine}{response}");
+        }
+    }
+
+    private string BuildManufacturerScanGuidance(string scanKind, IReadOnlyList<VehicleModuleTarget> targets)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(scanKind switch
+        {
+            ManufacturerModuleCatalog.ScanToyotaEnhanced => "Toyota enhanced data mode: reads DTCs, ECU identity, and supported calibration/part identifiers. This is not Techstream active testing or customization.",
+            ManufacturerModuleCatalog.ScanChryslerTransmission => "Chrysler transmission mode: focuses TCM/CVT candidates with read-only DTC and identity requests. It does not perform quick-learns, adaptations, or resets.",
+            ManufacturerModuleCatalog.ScanHyundaiKiaModules => "Hyundai/Kia module mode: reads module DTC/identity candidates across powertrain, chassis, safety, body, and steering. It does not code keys, SRS, or adaptations.",
+            ManufacturerModuleCatalog.ScanFordMazdaHsCan => "Ford/Mazda HS-CAN mode: set the physical switch to HS-CAN before continuing. This targets powertrain, transmission, ABS, restraint, and steering candidates.",
+            ManufacturerModuleCatalog.ScanFordMazdaMsCan => "Ford/Mazda MS-CAN mode: set the physical switch to MS-CAN before continuing. This targets BCM, cluster, HVAC, door, APIM, and steering-column candidates.",
+            _ => "Manufacturer scan mode: read-only module DTC/identity probing."
+        });
+
+        builder.AppendLine($"Targets: {targets.Count}");
+        foreach (var group in targets.GroupBy(target => string.IsNullOrWhiteSpace(target.Bus) ? "CAN" : target.Bus))
+        {
+            builder.AppendLine($"{group.Key}: {string.Join(", ", group.Select(target => target.Name))}");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string DecodeDataIdentifierAscii(string response, string dataIdentifier)
+    {
+        var did = NormalizeHexCommand(dataIdentifier);
+        if (did.Length != 4 ||
+            !int.TryParse(did[..2], System.Globalization.NumberStyles.HexNumber, null, out var highByte) ||
+            !int.TryParse(did[2..], System.Globalization.NumberStyles.HexNumber, null, out var lowByte))
+        {
+            return "";
+        }
+
+        return ObdDecoder.DecodeAsciiFromPositiveResponse(response, 0x62, highByte, lowByte);
+    }
+
+    private static string NormalizeHexCommand(string command)
+    {
+        return command.Trim()
+            .Replace(" ", "", StringComparison.Ordinal)
+            .Replace("-", "", StringComparison.Ordinal)
+            .ToUpperInvariant();
     }
 
     private static bool LooksLikeNoData(string response)

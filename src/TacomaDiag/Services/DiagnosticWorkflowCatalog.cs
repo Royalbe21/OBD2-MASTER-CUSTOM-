@@ -87,6 +87,32 @@ public static class DiagnosticWorkflowCatalog
         },
         new()
         {
+            Name = "Vehicle discovery and module mapping baseline",
+            Objective = "Create a safe before-repair baseline that proves adapter capability, vehicle identity, OBD support, readiness, codes, and read-only module responses.",
+            WhenToUse = "First connection to a vehicle, before clearing codes, before repair work, or after switching adapters/buses.",
+            Steps =
+            [
+                Step(1, "Run Adapter Wizard first.", "The adapter opens, reports identity/protocol, and can send commands without errors.", "Fix driver, COM port, baud rate, J2534 DLL, or HS/MS switch issues before vehicle discovery."),
+                Step(2, "Open Vehicle Discovery and click Discover Vehicle.", "VIN, protocol, supported PIDs, DTCs, readiness, and module candidates are captured.", "If VIN or PID support fails, verify ignition ON, selected protocol, and adapter switch position."),
+                Step(3, "Review module map labels.", "Confirmed modules responded; possible/no-response modules are clearly marked.", "MS-CAN or enhanced-adapter labels mean the current adapter/bus may not be enough for that module."),
+                Step(4, "Click Save Baseline and save a report.", "The baseline is written to history/report output before codes are cleared.", "Keep the baseline for before/after repair comparison.")
+            ]
+        },
+        new()
+        {
+            Name = "Manufacturer-specific read-only scan",
+            Objective = "Use the focused Toyota, Chrysler, Hyundai/Kia, and Ford/Mazda scan buttons after the baseline without writing to modules.",
+            WhenToUse = "After Adapter Wizard and Vehicle Discovery succeed and you need deeper module identity, DTC, or calibration/part evidence.",
+            Steps =
+            [
+                Step(1, "Select the exact vehicle or closest manufacturer profile.", "The module catalog and bus notes match the vehicle family.", "Stop and choose the correct profile before manufacturer-specific scanning."),
+                Step(2, "Run the focused manufacturer button in Mode 6 / Modules.", "The scan log shows DTC, ECU identity, and supported data identifier responses.", "No response may mean wrong bus, unsupported service, weak adapter, or module not equipped."),
+                Step(3, "For Ford/Mazda, run HS-CAN and MS-CAN separately with the physical switch in the prompted position.", "HS-CAN and MS-CAN module rows are separated in the grid/report.", "Do not flip the switch while a scan is actively running."),
+                Step(4, "Save the report before clearing or using external tools.", "Raw responses and bus labels are preserved for comparison.", "Use dealer/J2534/enhanced tools for active tests, relearns, coding, programming, and safety-service routines.")
+            ]
+        },
+        new()
+        {
             Name = "Jeep Compass transmission module scan",
             Objective = "Read Chrysler/FCA transmission-controller DTCs and identity data without writing or clearing anything.",
             WhenToUse = "2016 Jeep Compass FWD four-cylinder with CVT/automatic concerns, limp mode, shift issues, or transmission MIL request.",

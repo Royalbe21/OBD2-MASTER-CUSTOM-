@@ -6,7 +6,10 @@ public sealed class VehicleModuleTarget
     public string System { get; init; } = "";
     public string RequestHeader { get; init; } = "";
     public string ResponseHeader { get; init; } = "";
+    public string Bus { get; init; } = "";
+    public string RequiredAdapterProfile { get; init; } = "";
     public string Notes { get; init; } = "";
+    public IReadOnlyList<string> DataIdentifiers { get; init; } = [];
     public bool IsPriority { get; init; }
 }
 
@@ -15,6 +18,7 @@ public sealed class ModuleScanResult
     public string Module { get; init; } = "";
     public string System { get; init; } = "";
     public string RequestHeader { get; init; } = "";
+    public string Bus { get; init; } = "";
     public string Status { get; init; } = "";
     public string DtcSummary { get; init; } = "";
     public string EcuId { get; init; } = "";
