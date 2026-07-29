@@ -100,6 +100,45 @@ public static class DiagnosticWorkflowCatalog
         },
         new()
         {
+            Name = "Dodge/Freightliner Sprinter diesel van scan",
+            Objective = "Capture emissions, engine, transmission, ABS/ESP, SRS, and body-module candidates on Mercedes-derived Sprinter diesel vans without writing or clearing enhanced modules.",
+            WhenToUse = "Dodge or Freightliner Sprinter diesel vans with glow plug, turbo/boost, limp mode, transmission, ABS/ESP, SRS, or body-module concerns.",
+            Steps =
+            [
+                Step(1, "Select the Dodge/Freightliner Sprinter diesel van profile.", "The profile notes show Sprinter/Mercedes-derived diagnostics and protocol cautions.", "Do not use the generic Chrysler profile for Sprinter-specific diesel/module work."),
+                Step(2, "Connect with auto-detect first; on 2007+ vans try CAN 11/500 if needed.", "Generic OBD-II responds before enhanced scanning.", "Early vans may need K-line/ISO support or Sprinter-capable tooling if CAN does not respond."),
+                Step(3, "Run Transmission Scan for limp-mode or shift complaints.", "Engine and transmission candidates return DTCs, ECU ID, or a clear unsupported/no-response status.", "If ELM responses are inconsistent, retry with a stronger J2534 adapter or Sprinter-capable scan tool."),
+                Step(4, "Run Enhanced Module Scan and save the report before clearing anything.", "Raw ABS/ESP, SRS, body, cluster, and HVAC candidates are preserved.", "Do not clear SRS/ABS or perform adaptations without verified Sprinter tooling.")
+            ]
+        },
+        new()
+        {
+            Name = "Ram ProMaster EcoDiesel van scan",
+            Objective = "Capture read-only FCA/Ram diesel van engine, transmission, chassis, safety, and body candidates with diesel aftertreatment notes.",
+            WhenToUse = "Ram ProMaster 3.0L EcoDiesel vans with DPF/DEF/SCR, limp mode, transmission, ABS, airbag, or body-module concerns.",
+            Steps =
+            [
+                Step(1, "Select the Ram ProMaster 3.0L EcoDiesel van profile.", "The profile loads ProMaster diesel priorities and warnings.", "Do not perform forced regens, relearns, or resets from this prototype."),
+                Step(2, "Connect with Serial/Bluetooth ELM327 or J2534 and confirm CAN 11/500.", "Generic OBD-II responds and VIN/readiness can be captured.", "Try J2534 if the ELM adapter drops frames or enhanced candidates do not respond."),
+                Step(3, "Use Transmission Scan for transmission or limp-mode complaints.", "TCM candidates respond with DTCs, ECU ID, or unsupported/no-response status.", "If TCM candidates fail, capture the report and retry with FCA-enhanced tooling."),
+                Step(4, "Use Enhanced Module Scan and save the report.", "Diesel powertrain and body/chassis raw responses are preserved.", "Aftertreatment resets and service routines require verified FCA/Ram-capable tools.")
+            ]
+        },
+        new()
+        {
+            Name = "Chevrolet Express / GMC Savana van scan",
+            Objective = "Capture GM van engine, transmission, ABS, airbag, BCM, cluster, and HVAC candidates with diesel/gas protocol cautions.",
+            WhenToUse = "Chevrolet Express or GMC Savana vans with Duramax diesel, gas powertrain, transmission, ABS, airbag, body, or HVAC concerns.",
+            Steps =
+            [
+                Step(1, "Select the Chevrolet Express / GMC Savana van profile.", "The profile loads GM van candidates and protocol notes.", "Older vans may use VPW/Class 2 instead of CAN; let the adapter auto-detect first."),
+                Step(2, "Connect and confirm the detected protocol before enhanced scanning.", "Generic OBD-II responds and the raw terminal logs the protocol.", "If older VPW/Class 2 communication fails, try another adapter profile or a GM-capable scanner."),
+                Step(3, "Use Transmission Scan for shift, tow/haul, or limp-mode concerns.", "TCM candidates return DTCs, ECU ID, or unsupported/no-response status.", "Some GM module data needs enhanced definitions even when generic OBD works."),
+                Step(4, "Use Enhanced Module Scan and save the report.", "EBCM, SDM, BCM, IPC, HVAC, and fallback candidates are documented.", "Do not clear safety/chassis codes until the original faults and freeze-frame context are saved.")
+            ]
+        },
+        new()
+        {
             Name = "Generic manufacturer module scan",
             Objective = "Try safe read-only CAN module probing across common manufacturer families.",
             WhenToUse = "A vehicle is not covered by a specific profile but uses CAN OBD-II.",

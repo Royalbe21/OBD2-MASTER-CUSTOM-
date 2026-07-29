@@ -40,6 +40,30 @@ public static class ManufacturerModuleCatalog
         Target("HVAC / Occupant comfort", "Body", "7E7", "7EF", "Comfort-module candidate; response support varies.", false)
     ];
 
+    private static readonly IReadOnlyList<VehicleModuleTarget> RamProMasterDieselTargets =
+    [
+        Target("ECM / diesel powertrain", "Powertrain", "7E0", "7E8", "Primary EcoDiesel engine controller; DPF/DEF/SCR data usually requires enhanced definitions.", true),
+        Target("Transmission / automated manual", "Transmission", "7E1", "7E9", "Transmission-controller candidate for ProMaster diesel vans.", true),
+        Target("Transmission alternate", "Transmission", "7E2", "7EA", "Alternate transmission candidate used by some FCA layouts.", true),
+        Target("ABS / ESC", "Chassis", "7E3", "7EB", "ABS/ESC candidate; support varies.", false),
+        Target("ORC / airbag", "Safety", "7E4", "7EC", "Read-only restraint candidate; do not clear or code here.", false),
+        Target("BCM / body computer", "Body", "7E5", "7ED", "Body-controller candidate for locks, lighting, and network-gateway related faults.", false),
+        Target("Cluster / gateway", "Body", "7E6", "7EE", "Instrument cluster or gateway candidate; support varies.", false),
+        Target("HVAC / comfort", "Body", "7E7", "7EF", "Comfort-module candidate; support varies.", false)
+    ];
+
+    private static readonly IReadOnlyList<VehicleModuleTarget> SprinterDieselTargets =
+    [
+        Target("CDI / diesel engine", "Powertrain", "7E0", "7E8", "Mercedes-derived diesel engine controller candidate.", true),
+        Target("EGS / transmission", "Transmission", "7E1", "7E9", "Sprinter transmission-controller candidate.", true),
+        Target("Transmission alternate", "Transmission", "7E2", "7EA", "Alternate transmission candidate for later CAN layouts.", true),
+        Target("ESP / ABS", "Chassis", "7E3", "7EB", "Sprinter stability/ABS candidate; enhanced support varies heavily.", false),
+        Target("SRS / restraint", "Safety", "7E4", "7EC", "Read-only restraint candidate; Sprinter-capable tooling is preferred.", false),
+        Target("SAM / body module", "Body", "7E5", "7ED", "Signal acquisition/body-module candidate; support varies.", false),
+        Target("Instrument cluster", "Body", "7E6", "7EE", "Cluster candidate; support varies.", false),
+        Target("HVAC / auxiliary heat", "Body", "7E7", "7EF", "Comfort or auxiliary-heat candidate; support varies.", false)
+    ];
+
     private static readonly IReadOnlyList<VehicleModuleTarget> FordTargets =
     [
         Target("PCM", "Powertrain", "7E0", "7E8", "Ford powertrain controller candidate.", true),
@@ -58,6 +82,17 @@ public static class ManufacturerModuleCatalog
         Target("BCM", "Body", "243", "643", "GM body-control candidate; support varies.", false)
     ];
 
+    private static readonly IReadOnlyList<VehicleModuleTarget> GeneralMotorsVanTargets =
+    [
+        Target("ECM / engine", "Powertrain", "7E0", "7E8", "GM Express/Savana engine controller candidate.", true),
+        Target("TCM / transmission", "Transmission", "7E1", "7E9", "GM Express/Savana transmission controller candidate.", true),
+        Target("EBCM / ABS", "Chassis", "241", "649", "GM van brake-control candidate; support varies.", false),
+        Target("SDM / airbag", "Safety", "257", "657", "GM van sensing/diagnostic module candidate; read-only only.", false),
+        Target("BCM / body", "Body", "243", "643", "GM van body-control candidate; support varies.", false),
+        Target("IPC / instrument cluster", "Body", "250", "650", "GM van instrument-cluster candidate; support varies.", false),
+        Target("HVAC / climate", "Body", "248", "648", "GM van HVAC candidate; support varies.", false)
+    ];
+
     private static readonly IReadOnlyList<VehicleModuleTarget> VolkswagenAudiTargets =
     [
         Target("Engine", "Powertrain", "7E0", "7E8", "VW/Audi engine candidate.", true),
@@ -73,8 +108,11 @@ public static class ManufacturerModuleCatalog
         {
             "Hyundai/Kia" => HyundaiKiaTargets,
             "Chrysler" => ChryslerTargets,
+            "Ram ProMaster" => RamProMasterDieselTargets,
+            "Sprinter" => SprinterDieselTargets,
             "Ford" => Merge(FordTargets, StandardCanTargets),
             "General Motors" => Merge(GeneralMotorsTargets, StandardCanTargets),
+            "General Motors Van" => Merge(GeneralMotorsVanTargets, StandardCanTargets),
             "VW/Audi" => Merge(VolkswagenAudiTargets, StandardCanTargets),
             "Toyota" or "Honda" or "Nissan" or "BMW" or "Mercedes" or "Subaru" or "Mazda" or "Volvo" or "Generic" => StandardCanTargets,
             _ => StandardCanTargets

@@ -16,6 +16,9 @@ public sealed class VehicleProfile
         ToyotaTacoma2008Base2TrFe,
         JeepCompass2016FwdFourCylinder,
         HyundaiElantra2014TwoLiter,
+        DodgeSprinterDieselVan,
+        RamProMasterEcoDieselVan,
+        ChevroletExpressGmcSavanaVan,
         GenericHyundaiKiaCan,
         GenericFordLincolnCan,
         GenericGeneralMotorsCan,
@@ -66,6 +69,42 @@ public sealed class VehicleProfile
         ExpectedProtocol = "ISO 15765-4 CAN, usually 11-bit / 500 kbps",
         Notes = "Hyundai/Kia enhanced module access varies by adapter and module. ELM327 can attempt read-only OBD/UDS scans; fuller module coverage normally needs a capable J2534 interface and Hyundai/Kia enhanced definitions.",
         ManufacturerFamily = "Hyundai/Kia"
+    };
+
+    public static VehicleProfile DodgeSprinterDieselVan { get; } = new()
+    {
+        Name = "Dodge/Freightliner Sprinter diesel van",
+        Year = "2003-2009",
+        Make = "Dodge/Freightliner",
+        Model = "Sprinter",
+        Engine = "2.7L I5 diesel or 3.0L V6 diesel, year dependent",
+        ExpectedProtocol = "Early vans may use ISO 9141/K-line; later NCV3 vans usually use CAN. Try auto-detect first, then CAN 11/500 on 2007+ vans.",
+        Notes = "Sprinter diagnostics are Mercedes-derived. Generic OBD-II can read emissions powertrain data, but ABS/SRS/TCM/DEF-style enhanced coverage normally needs a Sprinter/Mercedes-capable scanner or a capable J2534 interface with enhanced definitions.",
+        ManufacturerFamily = "Sprinter"
+    };
+
+    public static VehicleProfile RamProMasterEcoDieselVan { get; } = new()
+    {
+        Name = "Ram ProMaster 3.0L EcoDiesel van",
+        Year = "2014-2018",
+        Make = "Ram",
+        Model = "ProMaster",
+        Engine = "3.0L EcoDiesel inline-four",
+        ExpectedProtocol = "ISO 15765-4 CAN, usually 11-bit / 500 kbps",
+        Notes = "ProMaster diesel diagnostics are FCA/Ram-derived and may include diesel aftertreatment, DPF, DEF/SCR, and transmission/automated-manual concerns. This app performs read-only scans; forced regens, resets, relearns, and coding need verified enhanced tooling.",
+        ManufacturerFamily = "Ram ProMaster"
+    };
+
+    public static VehicleProfile ChevroletExpressGmcSavanaVan { get; } = new()
+    {
+        Name = "Chevrolet Express / GMC Savana van",
+        Year = "1996+",
+        Make = "Chevrolet/GMC",
+        Model = "Express / Savana",
+        Engine = "Gas or Duramax diesel, year dependent",
+        ExpectedProtocol = "CAN on later vans; older vans may use SAE J1850 VPW/Class 2. Use auto-detect first.",
+        Notes = "Express/Savana diagnostics are GM-derived. Generic OBD-II covers emissions powertrain data; ABS, airbag, BCM, HVAC, and diesel aftertreatment detail depend on year, module network, adapter capability, and GM-enhanced definitions.",
+        ManufacturerFamily = "General Motors Van"
     };
 
     public static VehicleProfile GenericHyundaiKiaCan { get; } = Generic("Hyundai/Kia CAN vehicle", "Hyundai/Kia", "Hyundai/Kia");

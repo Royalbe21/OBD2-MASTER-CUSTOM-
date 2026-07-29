@@ -1,8 +1,8 @@
 # OBD2 Master, Custom
 
-OBD2 Master, Custom is a Windows 11 WPF prototype for working with an ELM327 or J2534-capable OBD-II adapter on a 2008 Toyota Tacoma Base 2.7L 2TR-FE.
+OBD2 Master, Custom is a Windows 11 WPF prototype for working with ELM327 serial/Bluetooth adapters and J2534-capable OBD-II adapters.
 
-It also includes profiles for a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyundai Elantra 2.0L, and broad generic CAN profiles for common manufacturer families.
+It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyundai Elantra 2.0L, Dodge/Freightliner Sprinter diesel vans, Ram ProMaster EcoDiesel vans, Chevrolet Express/GMC Savana vans, and broad generic CAN profiles for common manufacturer families.
 
 ## Current prototype features
 
@@ -33,6 +33,9 @@ It also includes profiles for a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyun
 - 2016 Jeep Compass FWD four-cylinder profile with Chrysler/FCA enhanced module-scan targets
 - Transmission-priority module scan for Jeep/Chrysler TCM candidates using read-only UDS-style requests where supported
 - 2014 Hyundai Elantra 2.0L profile with Hyundai/Kia read-only module-scan targets
+- Dodge/Freightliner Sprinter diesel van profile with Mercedes/Sprinter-derived read-only module-scan targets
+- Ram ProMaster 3.0L EcoDiesel van profile with FCA/Ram diesel van read-only module-scan targets
+- Chevrolet Express / GMC Savana van profile with GM van read-only module-scan targets
 - Generic manufacturer profiles for Ford/Lincoln, GM, Honda/Acura, Nissan/Infiniti, Toyota/Lexus, Chrysler/Jeep/Dodge/Ram, VW/Audi, BMW/Mini, Mercedes-Benz, Subaru, Mazda, Volvo, Hyundai/Kia, and generic OBD-II CAN vehicles
 - Manufacturer-aware module scan catalog with transmission-priority targets where known
 - Dark workstation-style interface
@@ -52,6 +55,12 @@ An experimental WinUSB driver-package scaffold for MPPS-style `USB\VID_1C43&PID_
 For the 2016 Jeep Compass, use the ELM/J2534 diagnostic connection for scanning. MPPS V16 is not the preferred tool for module diagnostics; it is treated as a separate ECU/TCU read/write companion. Full Chrysler module functionality depends on adapter quality, module addressing, and Chrysler-enhanced service definitions. The built-in enhanced scan uses read-only requests and does not perform coding, programming, immobilizer work, or bidirectional actuator tests.
 
 For the 2014 Hyundai Elantra 2.0L, select the Hyundai profile and start with CAN 11/500. Transmission and enhanced module scans use read-only UDS-style requests where supported. Full Hyundai/Kia dealer-level coverage still depends on adapter quality, module addressing, and enhanced service definitions.
+
+For Dodge/Freightliner Sprinter diesel vans, select the Sprinter diesel profile instead of the generic Chrysler profile. Sprinter diagnostics are Mercedes-derived, and early vans may need K-line/ISO support rather than CAN. Full ABS/SRS/transmission/body coverage normally requires Sprinter/Mercedes-capable tooling or J2534 with enhanced definitions.
+
+For Ram ProMaster 3.0L EcoDiesel vans, select the ProMaster EcoDiesel profile and start with CAN 11/500. The built-in scan is read-only and can document diesel powertrain and module candidates, but it does not perform DPF regeneration, DEF/SCR resets, injector coding, adaptations, or relearns.
+
+For Chevrolet Express and GMC Savana vans, select the Express/Savana profile and use auto-detect first. Newer vans commonly use CAN, while older vans may use GM VPW/Class 2. Diesel and body/chassis modules may require GM-enhanced definitions beyond generic OBD-II.
 
 Readiness cannot be forced ready by software. Clearing DTCs resets readiness monitors. The truck must run the required monitor checks during normal or drive-cycle operation.
 
