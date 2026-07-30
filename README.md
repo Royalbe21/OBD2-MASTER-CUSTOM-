@@ -2,7 +2,7 @@
 
 OBD2 Master, Custom is a Windows 11 WPF prototype for working with ELM327 serial/Bluetooth adapters and J2534-capable OBD-II adapters.
 
-It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyundai Elantra 2.0L, Dodge/Freightliner Sprinter diesel vans, Ram ProMaster EcoDiesel vans, Chevrolet Express/GMC Savana vans, and broad generic CAN profiles for common manufacturer families.
+It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD four-cylinder, a 2014 Hyundai Elantra 2.0L, Mercedes-Benz Sprinter diesel cargo vans, Dodge/Freightliner Sprinter diesel vans, Ram ProMaster EcoDiesel vans, Chevrolet Express/GMC Savana vans, and broad generic CAN profiles for common manufacturer families.
 
 ## Current prototype features
 
@@ -10,7 +10,8 @@ It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD
 - Dedicated USB ELM327 HS/MS-CAN CH340 adapter profile with driver detection and switch-position guidance
 - Adapter Wizard tab for COM/J2534 open checks, ELM identity tests, protocol confirmation, vehicle ECU response validation, VIN attempts, HS/MS switch checks, and saved hardware reports
 - Vehicle Discovery tab for safe baseline creation: VIN, protocol, supported PIDs, codes, readiness, adapter capability, and read-only module map labels
-- Manufacturer-specific read-only scan buttons for Toyota enhanced data, Chrysler transmission, Hyundai/Kia modules, Ford/Mazda HS-CAN modules, and Ford/Mazda MS-CAN modules
+- Scan Analyzer tab that reviews adapter, protocol, vehicle response, DTC, readiness, and module-map evidence and recommends what to try next
+- Manufacturer-specific read-only scan buttons for Toyota enhanced data, Chrysler transmission, Hyundai/Kia modules, Sprinter diesel modules, Ford/Mazda HS-CAN modules, and Ford/Mazda MS-CAN modules
 - J2534 PassThru connection through installed Windows J2534 DLLs
 - Manual J2534 DLL selection when the driver is not registered
 - Demo mode for UI testing without the vehicle connected
@@ -38,6 +39,7 @@ It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD
 - Transmission-priority module scan for Jeep/Chrysler TCM candidates using read-only UDS-style DTC, ECU identity, and calibration/part identifier requests where supported
 - 2014 Hyundai Elantra 2.0L profile with Hyundai/Kia read-only module-scan targets
 - Toyota/Tacoma enhanced read-only candidates for ECM, ECT/TCM, ABS/VSC, SRS, body ECU, combination meter, and A/C amplifier identity/data checks
+- Mercedes-Benz Sprinter diesel cargo van profile with CDI/BlueTEC, EGS, ESP/ABS, SRS, SAM/body, cluster, HVAC, SCR/AdBlue, and glow-plug read-only module candidates
 - Dodge/Freightliner Sprinter diesel van profile with Mercedes/Sprinter-derived read-only module-scan targets
 - Ram ProMaster 3.0L EcoDiesel van profile with FCA/Ram diesel van read-only module-scan targets
 - Chevrolet Express / GMC Savana van profile with GM van read-only module-scan targets
@@ -45,6 +47,7 @@ It includes profiles for a 2008 Toyota Tacoma Base 2.7L, a 2016 Jeep Compass FWD
 - Manufacturer-aware module scan catalog with transmission-priority targets where known, including Ford/Mazda HS-CAN and MS-CAN switch notes
 - Bus-aware module scan results showing CAN, HS-CAN, or MS-CAN in the module grid and reports
 - Safe module map labels such as Confirmed, Possible, No response, Requires MS-CAN, and Requires enhanced adapter
+- Scan result recommendations for likely wrong bus, wrong protocol, unsupported service, adapter/protocol errors, ignition/vehicle response issues, and J2534/enhanced-adapter next steps
 - Dark workstation-style interface
 
 ## Important limits
@@ -54,6 +57,8 @@ Plain serial ELM327 adapters can perform generic OBD-II diagnostics very well, b
 OBD2 Master, Custom intentionally does not include ECU programming, immobilizer functions, SRS clearing, ABS bleeding, or unsafe bidirectional controls.
 
 Manufacturer-specific buttons are read-only discovery tools. They request DTC records, ECU identity, and common UDS-style data identifiers such as VIN, part number, calibration, or strategy data where a module supports them. They do not perform relearns, resets, coding, active tests, immobilizer functions, SRS/ABS service routines, or programming.
+
+The Scan Analyzer is advisory. It classifies the evidence already captured by the app and suggests the next safest test path, but it cannot prove a module is absent, diagnose a part by itself, or replace factory service information.
 
 MPPS V16 is handled as an external ECU flasher companion. OBD2 Master, Custom can detect common MPPS USB hardware such as `USB\VID_1C43&PID_0500`, report whether Windows has a working driver loaded, scan for `mpps.exe`, launch it, and add MPPS readiness/safety notes to reports. It does not automate MPPS ECU read/write operations. Use OBD2 Master, Custom's J2534 mode only if the MPPS package or another adapter installs a real SAE J2534 PassThru DLL.
 
@@ -66,6 +71,8 @@ For the 2016 Jeep Compass, use the ELM/J2534 diagnostic connection for scanning.
 For the 2014 Hyundai Elantra 2.0L, select the Hyundai profile and start with CAN 11/500. Transmission and enhanced module scans use read-only UDS-style requests where supported. Full Hyundai/Kia dealer-level coverage still depends on adapter quality, module addressing, and enhanced service definitions.
 
 For Toyota/Tacoma enhanced checks, start with CAN 11/500 and use `Toyota Data` after the baseline. It can document likely ECM, transmission, ABS/VSC, SRS, body, cluster, and HVAC candidates but is not a Techstream replacement for active tests, utility resets, customizations, or immobilizer work.
+
+For Mercedes-Benz Sprinter diesel cargo vans, select the Mercedes-Benz Sprinter cargo profile and begin with auto-detect. Most 2010+ vans use CAN, so try CAN 11/500 if auto-detect is unstable. Use `Sprinter Diesel` after the baseline to document CDI/BlueTEC, EGS transmission, ESP/ABS, SRS, SAM/body, cluster, HVAC, SCR/AdBlue, and glow-plug candidates where the gateway exposes them. DPF regeneration, SCR/DEF resets, adaptations, injector coding, programming, and safety-module clearing require verified Sprinter/Mercedes-capable tooling.
 
 For Dodge/Freightliner Sprinter diesel vans, select the Sprinter diesel profile instead of the generic Chrysler profile. Sprinter diagnostics are Mercedes-derived, and early vans may need K-line/ISO support rather than CAN. Full ABS/SRS/transmission/body coverage normally requires Sprinter/Mercedes-capable tooling or J2534 with enhanced definitions.
 

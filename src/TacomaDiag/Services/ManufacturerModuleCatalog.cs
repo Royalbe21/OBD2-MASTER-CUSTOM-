@@ -10,6 +10,7 @@ public static class ManufacturerModuleCatalog
     public const string ScanHyundaiKiaModules = "hyundai-kia-modules";
     public const string ScanFordMazdaHsCan = "ford-mazda-hs";
     public const string ScanFordMazdaMsCan = "ford-mazda-ms";
+    public const string ScanSprinterDieselModules = "sprinter-diesel-modules";
 
     private static readonly IReadOnlyList<VehicleModuleTarget> StandardCanTargets =
     [
@@ -75,14 +76,17 @@ public static class ManufacturerModuleCatalog
 
     private static readonly IReadOnlyList<VehicleModuleTarget> SprinterDieselTargets =
     [
-        Target("CDI / diesel engine", "Powertrain", "7E0", "7E8", "Mercedes-derived diesel engine controller candidate.", true),
-        Target("EGS / transmission", "Transmission", "7E1", "7E9", "Sprinter transmission-controller candidate.", true),
-        Target("Transmission alternate", "Transmission", "7E2", "7EA", "Alternate transmission candidate for later CAN layouts.", true),
-        Target("ESP / ABS", "Chassis", "7E3", "7EB", "Sprinter stability/ABS candidate; enhanced support varies heavily.", false),
-        Target("SRS / restraint", "Safety", "7E4", "7EC", "Read-only restraint candidate; Sprinter-capable tooling is preferred.", false),
-        Target("SAM / body module", "Body", "7E5", "7ED", "Signal acquisition/body-module candidate; support varies.", false),
-        Target("Instrument cluster", "Body", "7E6", "7EE", "Cluster candidate; support varies.", false),
-        Target("HVAC / auxiliary heat", "Body", "7E7", "7EF", "Comfort or auxiliary-heat candidate; support varies.", false)
+        Target("CDI / diesel engine", "Powertrain", "7E0", "7E8", "Mercedes-derived CDI/BlueTEC engine-controller candidate. DPF, SCR/DEF, boost, EGR, and glow-plug detail usually needs enhanced definitions.", true, dataIdentifiers: ["F190", "F187", "F18C", "F195"]),
+        Target("EGS / transmission", "Transmission", "7E1", "7E9", "Sprinter automatic-transmission controller candidate for limp-mode and shift complaints.", true, dataIdentifiers: ["F190", "F187", "F18C"]),
+        Target("Transmission alternate", "Transmission", "7E2", "7EA", "Alternate transmission candidate for later CAN/gateway layouts.", true, dataIdentifiers: ["F190", "F187"]),
+        Target("ESP / ABS", "Chassis", "7E3", "7EB", "Sprinter stability/ABS/traction candidate; read-only only and enhanced support varies heavily.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("SRS / restraint", "Safety", "7E4", "7EC", "Read-only restraint candidate; do not clear safety faults from this prototype.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("SAM front / body gateway", "Body", "7E5", "7ED", "Front signal acquisition/body gateway candidate for lights, locks, wipers, and network faults; support varies.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("Instrument cluster", "Body", "7E6", "7EE", "Instrument-cluster candidate; support varies by gateway and model year.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("HVAC / auxiliary heat", "Body", "7E7", "7EF", "Climate, auxiliary heat, or comfort candidate; support varies.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("SAM rear / cargo body", "Body", "7D0", "7D8", "Rear signal acquisition/cargo-body candidate where equipped; useful for cargo van lighting and door faults.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("AdBlue / SCR candidate", "Powertrain", "7D1", "7D9", "Diesel aftertreatment/SCR candidate on BlueTEC vans where exposed through the diagnostic gateway.", false, dataIdentifiers: ["F190", "F187"]),
+        Target("Glow plug module candidate", "Powertrain", "7D2", "7DA", "Glow-plug control candidate where the module is separately addressable; many vans report this through CDI instead.", false, dataIdentifiers: ["F190", "F187"])
     ];
 
     private static readonly IReadOnlyList<VehicleModuleTarget> FordTargets =
@@ -136,7 +140,7 @@ public static class ManufacturerModuleCatalog
             "Hyundai/Kia" => HyundaiKiaTargets,
             "Chrysler" => ChryslerTargets,
             "Ram ProMaster" => RamProMasterDieselTargets,
-            "Sprinter" => SprinterDieselTargets,
+            "Sprinter" or "Mercedes Sprinter" => SprinterDieselTargets,
             "Ford" or "Mazda" => Merge(FordTargets, StandardCanTargets),
             "General Motors" => Merge(GeneralMotorsTargets, StandardCanTargets),
             "General Motors Van" => Merge(GeneralMotorsVanTargets, StandardCanTargets),
@@ -157,6 +161,7 @@ public static class ManufacturerModuleCatalog
             ScanHyundaiKiaModules => HyundaiKiaTargets,
             ScanFordMazdaHsCan => FordTargets.Where(target => target.Bus.Equals("HS-CAN", StringComparison.OrdinalIgnoreCase)).ToArray(),
             ScanFordMazdaMsCan => FordTargets.Where(target => target.Bus.Equals("MS-CAN", StringComparison.OrdinalIgnoreCase)).ToArray(),
+            ScanSprinterDieselModules => SprinterDieselTargets,
             _ => targets
         };
     }

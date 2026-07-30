@@ -331,6 +331,36 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Scan Analyzer">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <WrapPanel Orientation="Horizontal">
+                        <Button Content="Refresh Analysis" Click="RefreshScanAnalysisButton_Click"/>
+                        <Button Content="Copy To Report" Click="CopyScanAnalysisToReportButton_Click"/>
+                        <TextBlock x:Name="ScanAnalysisStatusTextBlock" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </WrapPanel>
+
+                    <DataGrid x:Name="ScanAnalysisDataGrid" Grid.Row="1" ItemsSource="{Binding ScanAnalysisRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90"/>
+                            <DataGridTextColumn Header="Area" Binding="{Binding Area}" Width="150"/>
+                            <DataGridTextColumn Header="Diagnosis" Binding="{Binding Diagnosis}" Width="*"/>
+                            <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*"/>
+                            <DataGridTextColumn Header="Recommendation" Binding="{Binding Recommendation}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBox x:Name="ScanAnalysisTextBox" Grid.Row="2" Margin="0,10,0,0"
+                             FontFamily="Consolas" AcceptsReturn="True" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="Freeze Frame">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -443,6 +473,7 @@
                         <Button Content="Toyota Data" Click="ToyotaEnhancedDataButton_Click"/>
                         <Button Content="Chrysler TCM" Click="ChryslerTransmissionScanButton_Click"/>
                         <Button Content="Hyundai/Kia" Click="HyundaiKiaModuleScanButton_Click"/>
+                        <Button Content="Sprinter Diesel" Click="SprinterDieselModuleScanButton_Click"/>
                         <Button Content="Ford/Mazda HS" Click="FordMazdaHsCanScanButton_Click"/>
                         <Button Content="Ford/Mazda MS" Click="FordMazdaMsCanScanButton_Click"/>
                     </WrapPanel>

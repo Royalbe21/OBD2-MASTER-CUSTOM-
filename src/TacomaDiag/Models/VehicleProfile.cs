@@ -16,6 +16,7 @@ public sealed class VehicleProfile
         ToyotaTacoma2008Base2TrFe,
         JeepCompass2016FwdFourCylinder,
         HyundaiElantra2014TwoLiter,
+        MercedesBenzSprinterCargoDieselVan,
         DodgeSprinterDieselVan,
         RamProMasterEcoDieselVan,
         ChevroletExpressGmcSavanaVan,
@@ -81,6 +82,18 @@ public sealed class VehicleProfile
         ExpectedProtocol = "Early vans may use ISO 9141/K-line; later NCV3 vans usually use CAN. Try auto-detect first, then CAN 11/500 on 2007+ vans.",
         Notes = "Sprinter diagnostics are Mercedes-derived. Generic OBD-II can read emissions powertrain data, but ABS/SRS/TCM/DEF-style enhanced coverage normally needs a Sprinter/Mercedes-capable scanner or a capable J2534 interface with enhanced definitions.",
         ManufacturerFamily = "Sprinter"
+    };
+
+    public static VehicleProfile MercedesBenzSprinterCargoDieselVan { get; } = new()
+    {
+        Name = "Mercedes-Benz Sprinter diesel cargo van",
+        Year = "2010+",
+        Make = "Mercedes-Benz",
+        Model = "Sprinter Cargo Van",
+        Engine = "BlueTEC / CDI diesel, engine varies by year",
+        ExpectedProtocol = "ISO 15765-4 CAN on most 2010+ vans; start with auto-detect, then CAN 11/500 if needed.",
+        Notes = "Mercedes-Benz Sprinter diagnostics are Mercedes-derived. Generic OBD-II covers emissions powertrain data; CDI/EGS/ESP/SRS/SAM coverage depends on adapter quality, gateway behavior, and Sprinter/Mercedes enhanced definitions.",
+        ManufacturerFamily = "Mercedes Sprinter"
     };
 
     public static VehicleProfile RamProMasterEcoDieselVan { get; } = new()

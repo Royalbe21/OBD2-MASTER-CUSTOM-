@@ -101,7 +101,7 @@ public static class DiagnosticWorkflowCatalog
         new()
         {
             Name = "Manufacturer-specific read-only scan",
-            Objective = "Use the focused Toyota, Chrysler, Hyundai/Kia, and Ford/Mazda scan buttons after the baseline without writing to modules.",
+            Objective = "Use the focused Toyota, Chrysler, Hyundai/Kia, Sprinter, and Ford/Mazda scan buttons after the baseline without writing to modules.",
             WhenToUse = "After Adapter Wizard and Vehicle Discovery succeed and you need deeper module identity, DTC, or calibration/part evidence.",
             Steps =
             [
@@ -109,6 +109,19 @@ public static class DiagnosticWorkflowCatalog
                 Step(2, "Run the focused manufacturer button in Mode 6 / Modules.", "The scan log shows DTC, ECU identity, and supported data identifier responses.", "No response may mean wrong bus, unsupported service, weak adapter, or module not equipped."),
                 Step(3, "For Ford/Mazda, run HS-CAN and MS-CAN separately with the physical switch in the prompted position.", "HS-CAN and MS-CAN module rows are separated in the grid/report.", "Do not flip the switch while a scan is actively running."),
                 Step(4, "Save the report before clearing or using external tools.", "Raw responses and bus labels are preserved for comparison.", "Use dealer/J2534/enhanced tools for active tests, relearns, coding, programming, and safety-service routines.")
+            ]
+        },
+        new()
+        {
+            Name = "Scan result analyzer review",
+            Objective = "Turn raw adapter, vehicle, and module responses into a prioritized next-step plan.",
+            WhenToUse = "After Adapter Wizard, Vehicle Discovery, or any manufacturer-specific scan has produced raw responses.",
+            Steps =
+            [
+                Step(1, "Open Scan Analyzer and click Refresh Analysis.", "The summary row describes connection, protocol, module response count, DTC count, and readiness status.", "If the analyzer has no evidence, run Adapter Wizard and Vehicle Discovery first."),
+                Step(2, "Handle High severity adapter or vehicle-response items first.", "The adapter/protocol path is stable before module diagnosis.", "Fix COM/driver/baud/protocol/switch/ignition issues before interpreting module no-response rows."),
+                Step(3, "Review module findings by bus and response type.", "Confirmed, no-response, negative-response, and adapter/protocol-error patterns are separated.", "Use the recommendation to switch HS/MS-CAN, force CAN 11/500, retry J2534, or narrow the target list."),
+                Step(4, "Copy analysis to the report before clearing or changing tools.", "The report captures evidence and next-step reasoning.", "Keep this with the baseline for before/after comparison.")
             ]
         },
         new()
@@ -135,6 +148,19 @@ public static class DiagnosticWorkflowCatalog
                 Step(2, "Connect with Serial/Bluetooth ELM327 or J2534 and force CAN 11/500 if auto-detect is unstable.", "ATDP reports ISO 15765-4 CAN.", "Use a J2534 interface if ELM module responses are missing or inconsistent."),
                 Step(3, "Use Transmission Scan first for transmission complaints.", "The TCM candidates return DTC records, ECU ID, or a clear unsupported/no-response status.", "If both TCM candidates fail, try Enhanced Module Scan with a stronger adapter."),
                 Step(4, "Use Enhanced Module Scan for all candidates and save the report.", "Raw responses are preserved for later review.", "Do not use clear/coding/programming operations until the fault is documented.")
+            ]
+        },
+        new()
+        {
+            Name = "Mercedes-Benz Sprinter diesel cargo van scan",
+            Objective = "Capture read-only Mercedes-derived diesel cargo van engine, transmission, aftertreatment, chassis, safety, and body candidates.",
+            WhenToUse = "Mercedes-Benz Sprinter cargo vans with CDI/BlueTEC diesel, limp mode, DPF/SCR/DEF, glow plug, transmission, ABS/ESP, SRS, lighting, cargo-door, or body-module concerns.",
+            Steps =
+            [
+                Step(1, "Select the Mercedes-Benz Sprinter diesel cargo van profile.", "The profile loads Sprinter/Mercedes module priorities and protocol cautions.", "Do not use a generic Mercedes or Chrysler profile for Sprinter-specific diesel/module work."),
+                Step(2, "Connect with auto-detect first; on most 2010+ vans force CAN 11/500 if auto-detect is unstable.", "Generic OBD-II responds and the raw terminal logs ISO 15765-4 CAN.", "If the van is an early K-line/ISO model or CAN does not respond, try ISO/KWP profiles or Sprinter-capable tooling."),
+                Step(3, "Use Sprinter Diesel in Mode 6 / Modules.", "CDI, EGS, ESP/ABS, SRS, SAM/body, cluster, HVAC, SCR, and glow-plug candidates return DTCs, ECU ID, unsupported, or no-response status.", "No response does not prove the module is absent; it may be behind a gateway or need Mercedes-enhanced definitions."),
+                Step(4, "Open Scan Analyzer, copy the analysis to the report, then save before clearing anything.", "The report preserves raw responses and the analyzer's next-step recommendations.", "Do not perform DPF regen, adaptations, injector coding, programming, or safety-module clearing from this prototype.")
             ]
         },
         new()

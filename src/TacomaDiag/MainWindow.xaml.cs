@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     public ObservableCollection<ModuleScanResult> ModuleScanRows { get; } = [];
     public ObservableCollection<AdapterWizardStep> AdapterWizardRows { get; } = [];
     public ObservableCollection<VehicleDiscoveryStep> VehicleDiscoveryRows { get; } = [];
+    public ObservableCollection<ScanAnalysisFinding> ScanAnalysisRows { get; } = [];
 
     private IObdTransport Transport => _transport ?? _elm;
 
@@ -238,6 +239,22 @@ public partial class MainWindow : Window
     private void RefreshAdvisorButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshAdvisor();
+    }
+
+    private void RefreshScanAnalysisButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshScanAnalysis();
+    }
+
+    private void CopyScanAnalysisToReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshScanAnalysis();
+        RefreshReport();
+        if (!string.IsNullOrWhiteSpace(ScanAnalysisTextBox.Text))
+        {
+            ReportTextBox.AppendText(Environment.NewLine + ScanAnalysisTextBox.Text);
+            SetFooter("Scan analysis copied to report.");
+        }
     }
 
     private void SaveSessionButton_Click(object sender, RoutedEventArgs e)
@@ -467,6 +484,11 @@ public partial class MainWindow : Window
     private async void HyundaiKiaModuleScanButton_Click(object sender, RoutedEventArgs e)
     {
         await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanHyundaiKiaModules, "Hyundai/Kia module"));
+    }
+
+    private async void SprinterDieselModuleScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiTaskAsync(() => ManufacturerSpecificScanAsync(ManufacturerModuleCatalog.ScanSprinterDieselModules, "Sprinter diesel module"));
     }
 
     private async void FordMazdaHsCanScanButton_Click(object sender, RoutedEventArgs e)
@@ -1923,6 +1945,7 @@ public partial class MainWindow : Window
 
     private void RefreshReport()
     {
+        RefreshScanAnalysis();
         ReportTextBox.Text = ObdDecoder.BuildQuickReport(Transport.ConnectionName, _lastProtocol, _lastVin, DtcRows.Where(row => row.Code != "None"), _lastReadiness);
         if (FreezeFrameRows.Count > 0)
         {
@@ -2009,6 +2032,15 @@ public partial class MainWindow : Window
             }
         }
 
+        if (ScanAnalysisRows.Count > 0)
+        {
+            ReportTextBox.AppendText(Environment.NewLine + "Scan Result Analyzer" + Environment.NewLine);
+            foreach (var row in ScanAnalysisRows)
+            {
+                ReportTextBox.AppendText($"{row.Severity} | {row.Area}: {row.Diagnosis} Next: {row.Recommendation}{Environment.NewLine}");
+            }
+        }
+
         if (_selectedMppsTool is not null || _mppsUsbDevices.Count > 0)
         {
             ReportTextBox.AppendText(Environment.NewLine + "MPPS V16 Tool" + Environment.NewLine);
@@ -2040,6 +2072,46 @@ public partial class MainWindow : Window
         }
 
         ReadinessGuideTextBox.Text = DiagnosticAdvisor.BuildReadinessGuide(_lastReadiness);
+        RefreshScanAnalysis();
+    }
+
+    private void RefreshScanAnalysis()
+    {
+        if (ScanAnalysisRows is null)
+        {
+            return;
+        }
+
+        var findings = ScanResultAnalyzer.BuildFindings(
+            _profile,
+            AdapterModeComboBox.SelectedItem?.ToString() ?? SerialAdapterMode,
+            GetSelectedAdapterProfile()?.Name ?? "",
+            Transport.ConnectionName,
+            _lastProtocol,
+            AdapterWizardRows,
+            VehicleDiscoveryRows,
+            ModuleScanRows,
+            DtcRows,
+            _lastReadiness);
+
+        ScanAnalysisRows.Clear();
+        foreach (var finding in findings)
+        {
+            ScanAnalysisRows.Add(finding);
+        }
+
+        if (ScanAnalysisTextBox is not null)
+        {
+            ScanAnalysisTextBox.Text = ScanResultAnalyzer.BuildNarrative(findings);
+        }
+
+        if (ScanAnalysisStatusTextBlock is not null)
+        {
+            var high = findings.Count(finding => finding.Severity == "High");
+            var medium = findings.Count(finding => finding.Severity == "Medium");
+            var review = findings.Count(finding => finding.Severity == "Review");
+            ScanAnalysisStatusTextBlock.Text = $"Analysis ready: {high} high, {medium} medium, {review} review item(s).";
+        }
     }
 
     private void RefreshHistory()
@@ -2153,7 +2225,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (scanKind is ManufacturerModuleCatalog.ScanToyotaEnhanced or ManufacturerModuleCatalog.ScanChryslerTransmission or ManufacturerModuleCatalog.ScanHyundaiKiaModules)
+        if (scanKind is ManufacturerModuleCatalog.ScanToyotaEnhanced or ManufacturerModuleCatalog.ScanChryslerTransmission or ManufacturerModuleCatalog.ScanHyundaiKiaModules or ManufacturerModuleCatalog.ScanSprinterDieselModules)
         {
             var response = await Transport.SendCommandAsync("ATSP6", timeoutMs: 3000);
             AppendMode6($"> ATSP6{Environment.NewLine}{response}");
@@ -2168,6 +2240,7 @@ public partial class MainWindow : Window
             ManufacturerModuleCatalog.ScanToyotaEnhanced => "Toyota enhanced data mode: reads DTCs, ECU identity, and supported calibration/part identifiers. This is not Techstream active testing or customization.",
             ManufacturerModuleCatalog.ScanChryslerTransmission => "Chrysler transmission mode: focuses TCM/CVT candidates with read-only DTC and identity requests. It does not perform quick-learns, adaptations, or resets.",
             ManufacturerModuleCatalog.ScanHyundaiKiaModules => "Hyundai/Kia module mode: reads module DTC/identity candidates across powertrain, chassis, safety, body, and steering. It does not code keys, SRS, or adaptations.",
+            ManufacturerModuleCatalog.ScanSprinterDieselModules => "Sprinter diesel mode: reads Mercedes-derived CDI, EGS, ESP/ABS, SRS, SAM/body, cluster, HVAC, SCR, and glow-plug candidates where the gateway exposes them. It does not perform DPF regen, SCR/DEF resets, adaptations, coding, injector programming, or safety-module clearing.",
             ManufacturerModuleCatalog.ScanFordMazdaHsCan => "Ford/Mazda HS-CAN mode: set the physical switch to HS-CAN before continuing. This targets powertrain, transmission, ABS, restraint, and steering candidates.",
             ManufacturerModuleCatalog.ScanFordMazdaMsCan => "Ford/Mazda MS-CAN mode: set the physical switch to MS-CAN before continuing. This targets BCM, cluster, HVAC, door, APIM, and steering-column candidates.",
             _ => "Manufacturer scan mode: read-only module DTC/identity probing."
