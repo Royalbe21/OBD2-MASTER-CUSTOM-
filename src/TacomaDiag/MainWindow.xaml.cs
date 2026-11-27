@@ -369,6 +369,10 @@ public partial class MainWindow : Window
             EnsureConnected();
             var response = await Transport.SendCommandAsync("04", timeoutMs: 6000);
             AppendCodesLog("04", response);
+            if (!response.Trim().Equals("44", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Clear request was not confirmed. Previous scan results have been retained.");
+            }
             DtcRows.Clear();
             MonitorRows.Clear();
             _lastReadiness = null;
@@ -844,7 +848,7 @@ public partial class MainWindow : Window
 
         foreach (var definition in ObdDecoder.LivePidDefinitions.Take(12))
         {
-            var command = "02" + definition.Pid[2..];
+            var command = "02" + definition.Pid[2..] + "00";
             var response = await Transport.SendCommandAsync(command, timeoutMs: 5000);
             FreezeFrameLogTextBox.AppendText($"> {command}{Environment.NewLine}{response}{Environment.NewLine}{Environment.NewLine}");
             var reading = ObdDecoder.DecodeFreezeFramePid(definition, response);
@@ -1154,8 +1158,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _operationActive;
+
     private async Task RunUiTaskAsync(Func<Task> action, bool showErrors = true)
     {
+        if (_operationActive) return;
+        _operationActive = true;
         try
         {
             SetBusy(true);
@@ -1172,6 +1180,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _operationActive = false;
             SetBusy(false);
         }
     }
@@ -1242,6 +1251,30 @@ public partial class MainWindow : Window
         _elm.Disconnect();
         _j2534.Disconnect();
         _transport = _elm;
+        _lastVin = "";
+        _lastProtocol = "";
+        _lastVehicleDiscoveryReport = "";
+        _lastReadiness = null;
+        _supportedPids.Clear();
+        _liveRecordingFrames.Clear();
+        _isRecordingLiveData = false;
+        _recordingStartedAt = null;
+        DtcRows.Clear();
+        MonitorRows.Clear();
+        ModuleScanRows.Clear();
+        VehicleDiscoveryRows.Clear();
+        AdapterWizardRows.Clear();
+        Mode6Rows.Clear();
+        FreezeFrameRows.Clear();
+        VinTextBlock.Text = "VIN: not read";
+        MilTextBlock.Text = "MIL: unknown";
+        DtcCountTextBlock.Text = "DTC count: unknown";
+        EngineTypeTextBlock.Text = "";
+        LiveDashboardTextBox.Clear();
+        SeedLivePidGrid();
+        UpdateRecordingStatus();
+        RefreshAdvisor();
+        RefreshReport();
     }
 
     private void UpdateAdapterControlState()
@@ -1289,6 +1322,7 @@ public partial class MainWindow : Window
 
     private void SetBusy(bool busy)
     {
+        DisconnectButton.IsEnabled = !busy;
         ConnectButton.IsEnabled = !busy;
         RefreshPortsButton.IsEnabled = !busy;
         RefreshAdapterHardwareButton.IsEnabled = !busy;
@@ -1457,12 +1491,23 @@ public partial class MainWindow : Window
     {
         DtcRows.Clear();
         var totalCodes = 0;
+        var incomplete = false;
 
         foreach (var (type, command) in new[] { ("Stored", "03"), ("Pending", "07"), ("Permanent", "0A") })
         {
             var response = await SendVehicleDiscoveryCommandAsync(command, timeoutMs: 6000);
             AppendCodesLog(command, response);
-            var codes = ObdDecoder.DecodeDtcResponse(response, type);
+            IReadOnlyList<DiagnosticTroubleCode> codes;
+            try
+            {
+                codes = ObdDecoder.DecodeDtcResponse(response, type);
+            }
+            catch (FormatException error)
+            {
+                incomplete = true;
+                AddVehicleDiscoveryStep($"{type} DTCs", "Incomplete", error.Message, response);
+                continue;
+            }
             totalCodes += codes.Count;
 
             foreach (var code in codes)
@@ -1488,7 +1533,7 @@ public partial class MainWindow : Window
                 response);
         }
 
-        AddVehicleDiscoveryStep("DTC summary", totalCodes == 0 ? "Clear" : "Found", $"{totalCodes} code(s) decoded across stored, pending, and permanent requests.", "");
+        AddVehicleDiscoveryStep("DTC summary", incomplete ? "Incomplete" : totalCodes == 0 ? "Clear" : "Found", $"{totalCodes} code(s) decoded across stored, pending, and permanent requests.", "");
     }
 
     private async Task DiscoverReadinessAsync()

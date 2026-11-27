@@ -66,9 +66,9 @@ public static class DiagnosticAdvisor
         {
             findings.Add(new HealthFinding
             {
-                Severity = "Good",
+                Severity = readiness is null ? "Info" : "Good",
                 Area = "Overall",
-                Finding = "No issues are currently visible from scanned data.",
+                Finding = readiness is null ? "Scan incomplete. Read codes and readiness." : "No issues are currently visible from scanned data.",
                 NextStep = "Run readiness, Mode 6, and a short live-data drive log when the vehicle is connected."
             });
         }

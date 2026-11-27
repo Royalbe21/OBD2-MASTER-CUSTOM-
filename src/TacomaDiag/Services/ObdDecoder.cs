@@ -206,13 +206,20 @@ public static partial class ObdDecoder
         var payloads = FindPayloads(rawResponse, positiveResponse).ToArray();
         if (payloads.Length == 0)
         {
-            return [];
+            throw new FormatException($"{type} codes could not be read. ECU response: {rawResponse}");
         }
 
         var results = new List<DiagnosticTroubleCode>();
         foreach (var payload in payloads)
         {
-            for (var i = 1; i + 1 < payload.Count; i += 2)
+            // CAN responses include a count byte. Legacy responses contain code pairs directly.
+            var counted = payload.Count % 2 == 0;
+            var start = counted ? 2 : 1;
+            if (payload.Count == 1 || (counted && payload[1] != (payload.Count - start) / 2))
+            {
+                throw new FormatException($"Incomplete {type} code response.");
+            }
+            for (var i = start; i + 1 < payload.Count; i += 2)
             {
                 if (payload[i] == 0x00 && payload[i + 1] == 0x00)
                 {
@@ -359,7 +366,13 @@ public static partial class ObdDecoder
             return readingFactory(supported ? "No data" : "Unsupported", rawResponse);
         }
 
-        var data = payload.Skip(2).ToArray();
+        var offset = positiveResponse == 0x42 ? 3 : 2;
+        if (positiveResponse == 0x42 && (payload.Count < 4 || payload[2] != 0))
+        {
+            return readingFactory("No data", rawResponse);
+        }
+
+        var data = payload.Skip(offset).ToArray();
         var value = TryConvertLiveValue(definition.Pid, data, out var converted)
             ? converted
             : "Raw " + string.Join(" ", data.Select(valueByte => valueByte.ToString("X2", CultureInfo.InvariantCulture)));
@@ -369,6 +382,28 @@ public static partial class ObdDecoder
 
     public static string DecodeVin(string rawResponse)
     {
+        var lines = rawResponse.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (lines.Any(line => line.StartsWith("0:", StringComparison.Ordinal)))
+        {
+            var parts = lines.Where(line => line.Length >= 2 && line[1] == ':').ToArray();
+            var joined = new StringBuilder();
+            for (var index = 0; index < parts.Length; index++)
+            {
+                if (!parts[index].StartsWith($"{index:X}:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "";
+                }
+
+                var hex = parts[index][2..].Replace(" ", "");
+                if (hex.Length % 2 != 0 || !hex.All(Uri.IsHexDigit))
+                {
+                    return "";
+                }
+                joined.Append(hex);
+            }
+            rawResponse = joined.ToString();
+        }
+
         var payloads = FindPayloads(rawResponse, 0x49, 0x02).ToArray();
         if (payloads.Length == 0)
         {
@@ -392,7 +427,7 @@ public static partial class ObdDecoder
             .Select(value => (char)value)
             .ToArray());
 
-        return vin.Trim('\0', ' ', '\r', '\n');
+        return Regex.IsMatch(vin, "^[A-HJ-NPR-Z0-9]{17}$") ? vin : "";
     }
 
     public static IReadOnlyList<Mode6TestResult> DecodeMode6Response(string rawResponse)
