@@ -369,6 +369,10 @@ public partial class MainWindow : Window
             EnsureConnected();
             var response = await Transport.SendCommandAsync("04", timeoutMs: 6000);
             AppendCodesLog("04", response);
+            if (!response.Trim().Equals("44", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Clear request was not confirmed. Previous scan results have been retained.");
+            }
             DtcRows.Clear();
             MonitorRows.Clear();
             _lastReadiness = null;
@@ -844,7 +848,7 @@ public partial class MainWindow : Window
 
         foreach (var definition in ObdDecoder.LivePidDefinitions.Take(12))
         {
-            var command = "02" + definition.Pid[2..];
+            var command = "02" + definition.Pid[2..] + "00";
             var response = await Transport.SendCommandAsync(command, timeoutMs: 5000);
             FreezeFrameLogTextBox.AppendText($"> {command}{Environment.NewLine}{response}{Environment.NewLine}{Environment.NewLine}");
             var reading = ObdDecoder.DecodeFreezeFramePid(definition, response);
@@ -1154,8 +1158,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _operationActive;
+
     private async Task RunUiTaskAsync(Func<Task> action, bool showErrors = true)
     {
+        if (_operationActive) return;
+        _operationActive = true;
         try
         {
             SetBusy(true);
@@ -1172,6 +1180,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _operationActive = false;
             SetBusy(false);
         }
     }
@@ -1242,6 +1251,30 @@ public partial class MainWindow : Window
         _elm.Disconnect();
         _j2534.Disconnect();
         _transport = _elm;
+        _lastVin = "";
+        _lastProtocol = "";
+        _lastVehicleDiscoveryReport = "";
+        _lastReadiness = null;
+        _supportedPids.Clear();
+        _liveRecordingFrames.Clear();
+        _isRecordingLiveData = false;
+        _recordingStartedAt = null;
+        DtcRows.Clear();
+        MonitorRows.Clear();
+        ModuleScanRows.Clear();
+        VehicleDiscoveryRows.Clear();
+        AdapterWizardRows.Clear();
+        Mode6Rows.Clear();
+        FreezeFrameRows.Clear();
+        VinTextBlock.Text = "VIN: not read";
+        MilTextBlock.Text = "MIL: unknown";
+        DtcCountTextBlock.Text = "DTC count: unknown";
+        EngineTypeTextBlock.Text = "";
+        LiveDashboardTextBox.Clear();
+        SeedLivePidGrid();
+        UpdateRecordingStatus();
+        RefreshAdvisor();
+        RefreshReport();
     }
 
     private void UpdateAdapterControlState()
@@ -1289,6 +1322,7 @@ public partial class MainWindow : Window
 
     private void SetBusy(bool busy)
     {
+        DisconnectButton.IsEnabled = !busy;
         ConnectButton.IsEnabled = !busy;
         RefreshPortsButton.IsEnabled = !busy;
         RefreshAdapterHardwareButton.IsEnabled = !busy;
@@ -1457,12 +1491,23 @@ public partial class MainWindow : Window
     {
         DtcRows.Clear();
         var totalCodes = 0;
+        var incomplete = false;
 
         foreach (var (type, command) in new[] { ("Stored", "03"), ("Pending", "07"), ("Permanent", "0A") })
         {
             var response = await SendVehicleDiscoveryCommandAsync(command, timeoutMs: 6000);
             AppendCodesLog(command, response);
-            var codes = ObdDecoder.DecodeDtcResponse(response, type);
+            IReadOnlyList<DiagnosticTroubleCode> codes;
+            try
+            {
+                codes = ObdDecoder.DecodeDtcResponse(response, type);
+            }
+            catch (FormatException error)
+            {
+                incomplete = true;
+                AddVehicleDiscoveryStep($"{type} DTCs", "Incomplete", error.Message, response);
+                continue;
+            }
             totalCodes += codes.Count;
 
             foreach (var code in codes)
@@ -1488,7 +1533,7 @@ public partial class MainWindow : Window
                 response);
         }
 
-        AddVehicleDiscoveryStep("DTC summary", totalCodes == 0 ? "Clear" : "Found", $"{totalCodes} code(s) decoded across stored, pending, and permanent requests.", "");
+        AddVehicleDiscoveryStep("DTC summary", incomplete ? "Incomplete" : totalCodes == 0 ? "Clear" : "Found", $"{totalCodes} code(s) decoded across stored, pending, and permanent requests.", "");
     }
 
     private async Task DiscoverReadinessAsync()
@@ -1554,6 +1599,11 @@ public partial class MainWindow : Window
         raw.AppendLine($"> ATSH{target.RequestHeader}");
         raw.AppendLine(headerResponse);
 
+        if (!headerResponse.Trim().Equals("OK", StringComparison.OrdinalIgnoreCase))
+            return new ModuleScanResult { Module = target.Name, System = target.System, Bus = target.Bus,
+                RequestHeader = target.RequestHeader, Status = "Address selection failed", RawResponse = raw.ToString() };
+
+        var assembled = Transport is J2534Client;
         var supportResponse = await SendVehicleDiscoveryCommandAsync("0100", timeoutMs: 3000);
         raw.AppendLine("> 0100");
         raw.AppendLine(supportResponse);
@@ -1561,19 +1611,20 @@ public partial class MainWindow : Window
         var idResponse = await SendVehicleDiscoveryCommandAsync("22F190", timeoutMs: 3500);
         raw.AppendLine("> 22F190");
         raw.AppendLine(idResponse);
-        var ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(idResponse, 0x62, 0xF1, 0x90);
+        var ecuId = ModuleReply.HasPositive(idResponse, target.ResponseHeader, assembled, 0x62, 0xF1, 0x90)
+            ? ObdDecoder.DecodeAsciiFromPositiveResponse(string.Join(Environment.NewLine, idResponse.Split(['\r', '\n']).Where(line => line.TrimStart().StartsWith(target.ResponseHeader + " ", StringComparison.OrdinalIgnoreCase))), 0x62, 0xF1, 0x90) : "";
 
         if (string.IsNullOrWhiteSpace(ecuId))
         {
             var partResponse = await SendVehicleDiscoveryCommandAsync("22F187", timeoutMs: 3000);
             raw.AppendLine("> 22F187");
             raw.AppendLine(partResponse);
-            ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(partResponse, 0x62, 0xF1, 0x87);
+            if (ModuleReply.HasPositive(partResponse, target.ResponseHeader, assembled, 0x62, 0xF1, 0x87))
+                ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(string.Join(Environment.NewLine, partResponse.Split(['\r', '\n']).Where(line => line.TrimStart().StartsWith(target.ResponseHeader + " ", StringComparison.OrdinalIgnoreCase))), 0x62, 0xF1, 0x87);
         }
 
-        var responded = LooksLikeObdPositiveResponse(supportResponse, "41 00") ||
-            !string.IsNullOrWhiteSpace(ecuId) ||
-            (!LooksLikeNoData(supportResponse) && !supportResponse.Trim().Equals("?", StringComparison.OrdinalIgnoreCase));
+        var responded = ModuleReply.HasPositive(supportResponse, target.ResponseHeader, assembled, 0x41, 0x00)
+            || !string.IsNullOrWhiteSpace(ecuId);
 
         return new ModuleScanResult
         {
@@ -1592,8 +1643,10 @@ public partial class MainWindow : Window
     {
         if (scan.Status.Equals("Responded", StringComparison.OrdinalIgnoreCase))
         {
-            return "Confirmed";
+            return "Response address verified";
         }
+
+        if (scan.Status == "Address selection failed") return scan.Status;
 
         var selectedProfile = GetSelectedAdapterProfile();
         var notesNeedMsCan = target.Notes.Contains("MS-CAN", StringComparison.OrdinalIgnoreCase);
