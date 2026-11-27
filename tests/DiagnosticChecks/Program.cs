@@ -48,5 +48,10 @@ foreach (var invalid in new[] { "NO DATA", "CAN ERROR", "43", "43 02 01 71" })
         Check(invalid, "incomplete", "incomplete");
     }
 }
+foreach (var (raw, assembled, expected) in new[] {
+    ("7E8 06 41 00 BE 3F A8 13", false, true), ("7E9 06 41 00 BE 3F A8 13", false, false),
+    ("7E8 41 00 BE 3F A8 13", true, true), ("ERROR: timeout", false, false),
+    ("7E8 06 41 00", false, false), ("7E8 03 7F 01 12", false, false) })
+    Check($"Discovery {raw}", expected.ToString(), ModuleReply.HasPositive(raw, "7E8", assembled, 0x41, 0).ToString());
 Console.WriteLine($"Review checks: {checks - failures}/{checks} passed; {failures} failures reproduced.");
 Environment.ExitCode = failures == 0 ? 0 : 1;

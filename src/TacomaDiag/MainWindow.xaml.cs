@@ -1599,6 +1599,11 @@ public partial class MainWindow : Window
         raw.AppendLine($"> ATSH{target.RequestHeader}");
         raw.AppendLine(headerResponse);
 
+        if (!headerResponse.Trim().Equals("OK", StringComparison.OrdinalIgnoreCase))
+            return new ModuleScanResult { Module = target.Name, System = target.System, Bus = target.Bus,
+                RequestHeader = target.RequestHeader, Status = "Address selection failed", RawResponse = raw.ToString() };
+
+        var assembled = Transport is J2534Client;
         var supportResponse = await SendVehicleDiscoveryCommandAsync("0100", timeoutMs: 3000);
         raw.AppendLine("> 0100");
         raw.AppendLine(supportResponse);
@@ -1606,19 +1611,20 @@ public partial class MainWindow : Window
         var idResponse = await SendVehicleDiscoveryCommandAsync("22F190", timeoutMs: 3500);
         raw.AppendLine("> 22F190");
         raw.AppendLine(idResponse);
-        var ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(idResponse, 0x62, 0xF1, 0x90);
+        var ecuId = ModuleReply.HasPositive(idResponse, target.ResponseHeader, assembled, 0x62, 0xF1, 0x90)
+            ? ObdDecoder.DecodeAsciiFromPositiveResponse(string.Join(Environment.NewLine, idResponse.Split(['\r', '\n']).Where(line => line.TrimStart().StartsWith(target.ResponseHeader + " ", StringComparison.OrdinalIgnoreCase))), 0x62, 0xF1, 0x90) : "";
 
         if (string.IsNullOrWhiteSpace(ecuId))
         {
             var partResponse = await SendVehicleDiscoveryCommandAsync("22F187", timeoutMs: 3000);
             raw.AppendLine("> 22F187");
             raw.AppendLine(partResponse);
-            ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(partResponse, 0x62, 0xF1, 0x87);
+            if (ModuleReply.HasPositive(partResponse, target.ResponseHeader, assembled, 0x62, 0xF1, 0x87))
+                ecuId = ObdDecoder.DecodeAsciiFromPositiveResponse(string.Join(Environment.NewLine, partResponse.Split(['\r', '\n']).Where(line => line.TrimStart().StartsWith(target.ResponseHeader + " ", StringComparison.OrdinalIgnoreCase))), 0x62, 0xF1, 0x87);
         }
 
-        var responded = LooksLikeObdPositiveResponse(supportResponse, "41 00") ||
-            !string.IsNullOrWhiteSpace(ecuId) ||
-            (!LooksLikeNoData(supportResponse) && !supportResponse.Trim().Equals("?", StringComparison.OrdinalIgnoreCase));
+        var responded = ModuleReply.HasPositive(supportResponse, target.ResponseHeader, assembled, 0x41, 0x00)
+            || !string.IsNullOrWhiteSpace(ecuId);
 
         return new ModuleScanResult
         {
@@ -1637,8 +1643,10 @@ public partial class MainWindow : Window
     {
         if (scan.Status.Equals("Responded", StringComparison.OrdinalIgnoreCase))
         {
-            return "Confirmed";
+            return "Response address verified";
         }
+
+        if (scan.Status == "Address selection failed") return scan.Status;
 
         var selectedProfile = GetSelectedAdapterProfile();
         var notesNeedMsCan = target.Notes.Contains("MS-CAN", StringComparison.OrdinalIgnoreCase);

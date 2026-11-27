@@ -9,6 +9,7 @@
     <Compile Include="../../src/TacomaDiag/Models/*.cs" />
     <Compile Include="../../src/TacomaDiag/Services/ObdDecoder.cs" />
     <Compile Include="../../src/TacomaDiag/Services/DiagnosticAdvisor.cs" />
+    <Compile Include="../../src/TacomaDiag/Services/ModuleReply.cs" />
     <Compile Include="../../src/TacomaDiag/Services/ScanResultAnalyzer.cs" />
   </ItemGroup>
 </Project>
